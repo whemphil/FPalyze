@@ -94,14 +94,13 @@ if (default.mP.values==F){
   }
 }
 estimate.initials=F # should initial regression values be estimated from data, T/F
-if (experiment.type=='Kd'){
+# if experiment.type=='Kd'
   reverse.timepoints=F # should equilibrium points be sampled from the beginning instead, T/F
   regression.approach='both' # what regression method should be used for equilibrium binding curve, std/hill/both/none
   if (estimate.initials==F){
     estimated.kd=50 # estimated Kd for regression, nM
   }
-}
-if (experiment.type=='COMP'){
+# if experiment.type=='COMP'
   regress.data=T # should the raw data be fit with regression and further modeled, T/F
   if (regress.data==T){
     coerce.offrates=T # should negative off-rates be coerced to zero, T/F
@@ -118,6 +117,5 @@ if (experiment.type=='COMP'){
     }
     legend.location='bottomright' # location of legend for null/displacement models graph
   }
-}
 
 }
