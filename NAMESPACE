@@ -2,3 +2,4 @@ exportPattern("^[[:alpha:]]+")
 
 export(FPalyze)
 export(file.parse)
+export(FPmultalyze)
