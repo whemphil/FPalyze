@@ -1,7 +1,7 @@
 Package: FPalyze
 Type: Package
 Title: Tools to Analyze Fluorescence Polarization Experiments
-Version: 1.2.0
+Version: 1.2.1
 Author: Wayne O. Hemphill
 Description: Includes functions for analyzing and summarizing Kd experiments and competition-based off-rate experiments. 
 Imports: EnvStats

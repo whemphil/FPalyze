@@ -616,20 +616,20 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
       
       # Generate competition models
-      fun.data=list('x'=rep(variant.concentrations,times=4),'y'=c(k.off-kt))
+      fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
       if (estimate.initials==T){
         start.N=1
-        start.ktheta=(rowMeans(k.off-kt)[1]-rowMeans(k.off-kt)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
-        start.kn1=rowMeans(k.off-kt)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
-        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt)))]
+        start.ktheta=(rowMeans(k.off-kt,na.rm = TRUE)[1]-rowMeans(k.off-kt,na.rm = TRUE)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
+        start.kn1=rowMeans(k.off-kt,na.rm = TRUE)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
+        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt,na.rm = TRUE)))]
       }
       fun.model.opt2=nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)+k.theta*(x*1e-9),data = fun.data,start = list('k.n1'=start.kn1,'Bhalf'=start.Bhalf,'N'=start.N,'k.theta'=start.ktheta),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE))
-      if (match.optimizers==T){
-        fun.data=list('x'=rep(variant.concentrations,times=4),'y'=c(k.off-kt),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
+      if (match.optimizers==T & exists('fun.model.opt2')==T){
+        fun.data<-list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (match.optimizers==F){
-        fun.data=list('x'=rep(variant.concentrations,times=4),'y'=c(k.off-kt))
+        fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (exists('fun.model.opt')==T){
@@ -784,20 +784,20 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
       
       # Generate competition models
-      fun.data=list('x'=rep(variant.concentrations,times=2),'y'=c(k.off-kt))
+      fun.data=list('x'=(rep(variant.concentrations,times=2))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
       if (estimate.initials==T){
         start.N=1
-        start.ktheta=(rowMeans(k.off-kt)[1]-rowMeans(k.off-kt)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
-        start.kn1=rowMeans(k.off-kt)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
-        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt)))]
+        start.ktheta=(rowMeans(k.off-kt,na.rm = TRUE)[1]-rowMeans(k.off-kt,na.rm = TRUE)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
+        start.kn1=rowMeans(k.off-kt,na.rm = TRUE)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
+        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt,na.rm = TRUE)))]
       }
       fun.model.opt2=nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)+k.theta*(x*1e-9),data = fun.data,start = list('k.n1'=start.kn1,'Bhalf'=start.Bhalf,'N'=start.N,'k.theta'=start.ktheta),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE))
-      if (match.optimizers==T){
-        fun.data=list('x'=rep(variant.concentrations,times=2),'y'=c(k.off-kt),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
+      if (match.optimizers==T & exists('fun.model.opt2')==T){
+        fun.data<-list('x'=(rep(variant.concentrations,times=2))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (match.optimizers==F){
-        fun.data=list('x'=rep(variant.concentrations,times=2),'y'=c(k.off-kt))
+        fun.data=list('x'=(rep(variant.concentrations,times=2))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (exists('fun.model.opt')==T){
@@ -935,7 +935,7 @@ file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.c
   
 }
 
-FPmultalyze <- function(experiment.type,path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL){
+FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL){
 
   FPalyze <- function(experiment.type,path.to.file,file.name,enzyme,prey.molecule,decoy.molecule,use.defaults,simulated.data,parameters.file,save.data,save.name,plot.pdf,plot.name,save.console,save.id){
     ##### BEGIN SCRIPT

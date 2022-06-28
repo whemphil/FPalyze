@@ -19,11 +19,11 @@ FPmultalyze(experiment.type,path.to.file='./',file.range=NULL,file.name=NULL,enz
 \item{simulated.data}{A logical indicating if the input data is from a simulation; affects functionality for default analysis parameters. DEFAULT=F}
 \item{parameters.file}{A single character string indicating the name of the file containing explicit analysis parameters; necessary if use.defaults=F. DEFAULT='PARAMETERS.R'.}
 \item{save.data}{A logical indicating if the generated R data should be written to an output file. DEFAULT=T}
-\item{save.name}{A single character string indicating the name of the output file if save.data=T. DEFAULT=(ResultsN for every data set)}
+\item{save.name}{A character string vector of length equal to file.range indicating the name of the output files if save.data=T. DEFAULT=(ResultsN for every data set)}
 \item{plot.pdf}{A logical indicating if the generated plots should be written to an output file. DEFAULT=T}
-\item{plot.name}{A single character string indicating the name of the output file if plot.pdf=T. DEFAULT=(GraphsN for every data set)}
+\item{plot.name}{A character string vector of length equal to file.range indicating the names of the output files if plot.pdf=T. DEFAULT=(GraphsN for every data set)}
 \item{save.console}{A logical indicating if the generated console information should be written to an output file. DEFAULT=T}
-\item{save.id}{A single character string indicating the name of the output file if save.console=T. DEFAULT=(ConsoleN for every data set)}
+\item{save.id}{A character string vector of length equal to file.range indicating the names of the output files if save.console=T. DEFAULT=(ConsoleN for every data set)}
 
 Input File Parameters:
 
