@@ -13,17 +13,17 @@
 FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console'){
 
   ##### BEGIN SCRIPT
-    
+
   if (use.defaults==F){
-  
+
     source(file = paste0(path.to.file,parameters.file))
-    
+
   }
-  
+
   ### Default Analysis Definition
-  
+
   if (use.defaults==T){
-  
+
   # Experiment conditions
   if (experiment.type=='Kd'){
     variant.concentrations=signif(c(1e3/2^c(0:10),0),3) # what are the concentrations of the variant molecule, nM
@@ -32,7 +32,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     variant.concentrations=signif(c(1e4/2^c(0:10),0),3) # what are the concentrations of the variant molecule, nM
   }
   data.size='full' # is the experiment size half (2 replicates) or full (4 replicates), half/full
-    
+
   # Data collection parameters
   time.step=30 # frequency of data collection, s
   t.zero=1 # estimated start-read delay time, min
@@ -43,7 +43,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     incubation.time=120 # window of data collection, min
   }
   coerce.timepoints=F # should these time-points be forced if they don't match the raw data, T/F
-    
+
   # Analysis parameters
   equilibrium.points=10 # average the last __ data points for equilibrium calculations
   outliers=c('none') # what are the outlier samples in your experiment, none/A1:P24
@@ -75,14 +75,14 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       legend.location='bottomright' # location of legend for null/displacement models graph
     }
   }
-  
+
   }
-  
+
   ### Data Import and Analysis
-  
+
   # Generate time vector
   t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
-  
+
   # Import and clean raw data
   if (default.mP.values==T){
     if (data.size=='full'){
@@ -161,7 +161,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     data.mP=1000*(data.par-G.factor*data.perp)/(data.par+G.factor*data.perp)
     data=data.mP
   }
-  
+
   # Scale raw data
   if (experiment.type=='Kd'){
     if (scale.data==T){
@@ -179,7 +179,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
   if (experiment.type=='COMP'){
     data.scaled=(data-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))
   }
-  
+
   if (experiment.type=='Kd'){
     # Calculate equilibrium values from scaled data
     if (reverse.timepoints==F){
@@ -194,7 +194,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           data.eq=apply(data.scaled[1:equilibrium.points,,],c(2,3),mean)
       }
     }
-    
+
     # Fit equilibrium binding curve data
     model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])
     if (estimate.initials==T){
@@ -211,19 +211,19 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       model.hill=nls(FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']]),n=1),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
     }
   }
-  
+
   ### Report Results
-  
+
   # Open txt file to save console output
   if (save.console==T){
     sink(paste0(path.to.file,save.id,'.txt'))
   }
-  
+
   # Open pdf to save plots
   if (plot.pdf==TRUE){
     pdf(file = paste(path.to.file,plot.name,'.pdf',sep = ''))
   }
-  
+
   if (experiment.type=='Kd' & data.size=='full'){
     # Plot association curves
     par(mfrow=c(4,3))
@@ -236,7 +236,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
     }
-  
+
     if (regression.approach=='none'){
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
@@ -258,7 +258,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-      
+
       # Summarize binding curve regression
       print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
     }
@@ -272,7 +272,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-      
+
       # Summarize binding curve regression
       print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
     }
@@ -284,7 +284,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-  
+
         plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
@@ -296,18 +296,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-  
+
         plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
       }
-      
+
       # Summarize binding curve regression
       print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-  
+
       # Model comparison statistics
       BIC=BIC(model.std,model.hill)
       print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -334,7 +334,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
-      
+
       # Outlier Identification
       if (outliers[1]=='none' & default.mP.values==F){
         temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
@@ -373,7 +373,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
     }
-  
+
   }
   if (experiment.type=='Kd' & data.size=='half'){
     # Plot association curves
@@ -387,7 +387,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
     }
-    
+
     if (regression.approach=='none'){
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
@@ -409,7 +409,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-      
+
       # Summarize binding curve regression
       print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
     }
@@ -423,7 +423,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-      
+
       # Summarize binding curve regression
       print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
     }
@@ -435,7 +435,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-        
+
         plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
@@ -447,18 +447,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-        
+
         plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
       }
-      
+
       # Summarize binding curve regression
       print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      
+
       # Model comparison statistics
       BIC=BIC(model.std,model.hill)
       print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -485,7 +485,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
-      
+
       # Outlier Identification
       if (outliers[1]=='none' & default.mP.values==F){
         temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
@@ -524,9 +524,9 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
     }
-    
+
   }
-  
+
   if (experiment.type=='COMP' & data.size=='full'){
     # Plot dissociation curves
     par(mfrow=c(4,3))
@@ -557,9 +557,15 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
         }
+        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t)),col='red',lwd=3)
+        }
+        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
+        }
       }
     }
-  
+
     # Plot comparative dissociation curves
     if (regress.data==T){
       par(fig=c(0,0.5,0.5,1))
@@ -576,6 +582,12 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
         }
+        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t)),lwd=3/i)
+        }
+        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+        }
       }
       if (scale.data==T){
         text(incubation.time,1,labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
@@ -583,7 +595,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       if (scale.data==F){
         text(incubation.time,max(na.omit(c(data))),labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
       }
-      
+
       # Plot decoy-dependence curves
       if (manual.fEP.adjust==T){
         cmp.models.coefficients.Mn=(cmp.models.coefficients.Mn*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
@@ -600,7 +612,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE),main = 'Decoy-Dependence of Apparent Off-Rate',xlab = '[Decoy] (µM)',ylab = '',type='p',cex.main=2.3,cex.lab=1.8,cex.axis=1.5)
       title(ylab = expression('k'['off']*' (s'^-1*')'),line = 2.1,cex.lab = 1.8)
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      
+
       # Generate competition models
       fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
       if (estimate.initials==T){
@@ -625,7 +637,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='purple',lwd=2,lty='dashed')
         legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
       }
-  
+
       # Report and compare models
       if (exists('fun.model.opt')==T){
         print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -659,7 +671,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste(rep('#',times=100),collapse = ''),quote = F)
         }
       }
-  
+
       # Outlier Identification
       if (outliers[1]=='none' & default.mP.values==F){
         temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
@@ -729,9 +741,15 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
         }
+        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t)),col='red',lwd=3)
+        }
+        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
+        }
       }
     }
-    
+
     # Plot comparative dissociation curves
     if (regress.data==T){
       par(fig=c(0,0.5,0.5,1))
@@ -748,6 +766,12 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
         }
+        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t)),lwd=3/i)
+        }
+        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+        }
       }
       if (scale.data==T){
         text(incubation.time,1,labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
@@ -755,7 +779,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       if (scale.data==F){
         text(incubation.time,max(na.omit(c(data))),labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
       }
-      
+
       # Plot decoy-dependence curves
       if (manual.fEP.adjust==T){
         cmp.models.coefficients.Mn=(cmp.models.coefficients.Mn*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
@@ -772,7 +796,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE),main = 'Decoy-Dependence of Apparent Off-Rate',xlab = '[Decoy] (µM)',ylab = '',type='p',cex.main=2.3,cex.lab=1.8,cex.axis=1.5)
       title(ylab = expression('k'['off']*' (s'^-1*')'),line = 2.1,cex.lab = 1.8)
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      
+
       # Generate competition models
       fun.data=list('x'=(rep(variant.concentrations,times=2))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
       if (estimate.initials==T){
@@ -797,7 +821,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='purple',lwd=2,lty='dashed')
         legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
       }
-      
+
       # Report and compare models
       if (exists('fun.model.opt')==T){
         print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -831,7 +855,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste(rep('#',times=100),collapse = ''),quote = F)
         }
       }
-      
+
       # Outlier Identification
       if (outliers[1]=='none' & default.mP.values==F){
         temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
@@ -871,22 +895,22 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
     }
   }
-  
+
   if (plot.pdf==T){
     dev.off()
   }
   if (save.console==T){
     sink()
   }
-  
+
   ### Save Results
-  
+
   RESULTS=mget(ls())
   if (save.data==T){
     save(RESULTS,file = paste(path.to.file,save.name,'.RData',sep = ''))
   }
   return(RESULTS)
-  
+
   ##### END SCRIPT
 
 }
@@ -922,7 +946,7 @@ file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.c
       write.table(x = perp.set[[i]],file = paste0('perp',i,'.txt'),quote = FALSE,sep = '\t',row.names = FALSE,col.names = TRUE)
     }
   }
-  
+
 }
 
 FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL){
@@ -1172,7 +1196,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
         }
         lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-        
+
         # Summarize binding curve regression
         print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
@@ -1186,7 +1210,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
         }
         lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-        
+
         # Summarize binding curve regression
         print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
@@ -1198,7 +1222,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
           legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-          
+
           plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
           arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
           lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
@@ -1210,7 +1234,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
           legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-          
+
           plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
           arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
           lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
@@ -1318,7 +1342,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
         }
         lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-        
+
         # Summarize binding curve regression
         print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
@@ -1332,7 +1356,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
         }
         lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-        
+
         # Summarize binding curve regression
         print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
@@ -1344,7 +1368,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
           legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-          
+
           plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
           arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
           lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
@@ -1356,14 +1380,14 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
           lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
           legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-          
+
           plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
           arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
           lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
           lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
           legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
         }
-        
+
         # Summarize binding curve regression
         print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
         print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -1483,7 +1507,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
         if (scale.data==F){
           text(incubation.time,max(na.omit(c(data))),labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
         }
-        
+
         # Plot decoy-dependence curves
         if (manual.fEP.adjust==T){
           cmp.models.coefficients.Mn=(cmp.models.coefficients.Mn*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
