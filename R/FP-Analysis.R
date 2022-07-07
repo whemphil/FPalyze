@@ -56,10 +56,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
   }
   if (default.mP.values==F){
     background.subtraction=T # should background subtraction be applied, T/F
-    G.adjust=F # should mP values be normalized with G-factor adjustment, T/F
-    if (G.adjust==F){
-      G.setting=1 # value that the G-factor should be set to, domain={x ε R | 0 < x ≤ Inf}
-    }
+    G.factor=1 # value that the G-factor should be set to, domain={x ε R | 0 < x ≤ Inf}
   }
   estimate.initials=T # should initial regression values be estimated from data, T/F
   if (experiment.type=='Kd'){
@@ -160,21 +157,6 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     if (background.subtraction==T & data.size==('half')){
       data.par=data.par-mean(as.matrix(raw.par[,26:29]))
       data.perp=data.perp-mean(as.matrix(raw.perp[,26:29]))
-    }
-    if (G.adjust==F){
-      G.factor=G.setting
-    }
-    if (G.adjust==T){
-      if (experiment.type=='Kd'){
-        x=median((1000*(data.par-data.perp)/(data.par+data.perp))[(length(t)-equilibrium.points+1):length(t),12,])
-        G.factor=(1e3+x)/(1e3-x)
-        rm(x)
-      }
-      if (experiment.type=='COMP'){
-        x=median((1000*(data.par-data.perp)/(data.par+data.perp))[(length(t)-equilibrium.points+1):length(t),1,])
-        G.factor=(1e3+x)/(1e3-x)
-        rm(x)
-      }
     }
     data.mP=1000*(data.par-G.factor*data.perp)/(data.par+G.factor*data.perp)
     data=data.mP
@@ -563,6 +545,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
             cmp.models.coefficients.lambda[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
           }
+          if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
+            cmp.models.coefficients.lambda[i,q]=0; cmp.models.coefficients.Mn[i,q]=1
+            warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
+          }
         }
         cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=4)); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
@@ -730,6 +716,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t); try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
           if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
             cmp.models.coefficients.lambda[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
+          }
+          if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
+            cmp.models.coefficients.lambda[i,q]=0; cmp.models.coefficients.Mn[i,q]=1
+            warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
           }
         }
         cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=2)); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
