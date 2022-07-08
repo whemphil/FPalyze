@@ -61,13 +61,6 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     if (experiment.type=='COMP' & is.null(incubation.time)==T){
       incubation.time=120 # window of data collection, min
     }
-    #
-    if (simulated.data==T & is.null(default.mP.values)==T){
-      default.mP.values=T # are you using pre-generated mP values, T/F
-    }
-    if (simulated.data==F & is.null(default.mP.values)==T){
-      default.mP.values=F # are you using pre-generated mP values, T/F
-    }
 
   }
 
@@ -970,7 +963,7 @@ FPmultalyze <- function(experiment.type='Kd',path.to.file='./',file.range=NULL,f
     save.id=paste0('Console',file.range)
   }
   for (i in 1:length(file.range)){
-    FPalyze(experiment.type,path.to.file,file.name[i,],enzyme[i],prey.molecule[i],decoy.molecule[i],simulated.data,parameters.file,save.data,save.name[i],plot.pdf,plot.name[i],save.console,save.id[i],...)
+    FPalyze(experiment.type,path.to.file,file.name[i,],enzyme[i],prey.molecule[i],decoy.molecule[i],parameters.file,save.data,save.name[i],plot.pdf,plot.name[i],save.console,save.id[i],...)
   }
 
 }
