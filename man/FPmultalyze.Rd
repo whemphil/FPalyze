@@ -5,19 +5,17 @@
 Function to analyze Kd and off-rate data from multiple fluorescence polarization experiments.
 }
 \usage{
-FPmultalyze(experiment.type,path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL)
+FPmultalyze(experiment.type='Kd',path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,parameters.file=NULL,save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL,...)
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd' or 'COMP'.}
 \item{path.to.file}{A single character string indicating the path to the directory where input file(s) are located. Output files will also go to this directory. DEFAULT=(working directory)}
 \item{file.range}{A numeric vector giving the indices of the FP files to be analyzed; naming conventions from file.parse() output are assumed. DEFAULT=(every one of the number of perpN.txt files in the specified path)}
 \item{file.name}{A character string matrix with 1 or 2 columns and a number of rows equal to the length of file.range, indicating the names of the raw input txt files. If the matrix is of 2 columns, as expected when default.mP.values=F, the rows are expected to identify the parallel THEN perpindicular intensity files. DEFAULT=(parN.txt and perpN.txt for all files in path)}
-\item{enzyme}{A character string vector of length equal to file.range indicating the names of the proteins tested. DEFAULT='Predator'}
-\item{prey.molecule}{A character string vector of length equal to file.range indicating the names of the prey molecules tested. DEFAULT='Prey'}
-\item{decoy.molecule}{A character string vector of length equal to file.range indicating the names of the decoy molecules tested. DEFAULT='Decoy'}
-\item{use.defaults}{A logical indicating if default analysis parameters should be used instead of an additional parameter input file. DEFAULT=T}
-\item{simulated.data}{A logical indicating if the input data is from a simulation; affects functionality for default analysis parameters. DEFAULT=F}
-\item{parameters.file}{A single character string indicating the name of the file containing explicit analysis parameters; necessary if use.defaults=F. DEFAULT='PARAMETERS.R'.}
+\item{enzyme}{A character string vector of length equal to file.range indicating the names of the proteins tested. DEFAULT='PredatorN'}
+\item{prey.molecule}{A character string vector of length equal to file.range indicating the names of the prey molecules tested. DEFAULT='PreyN'}
+\item{decoy.molecule}{A character string vector of length equal to file.range indicating the names of the decoy molecules tested. DEFAULT='DecoyN'}
+\item{parameters.file}{A single character string indicating the name of a file containing explicit analysis parameters. DEFAULT=NULL.}
 \item{save.data}{A logical indicating if the generated R data should be written to an output file. DEFAULT=T}
 \item{save.name}{A character string vector of length equal to file.range indicating the name of the output files if save.data=T. DEFAULT=(ResultsN for every data set)}
 \item{plot.pdf}{A logical indicating if the generated plots should be written to an output file. DEFAULT=T}
@@ -25,39 +23,38 @@ FPmultalyze(experiment.type,path.to.file='./',file.range=NULL,file.name=NULL,enz
 \item{save.console}{A logical indicating if the generated console information should be written to an output file. DEFAULT=T}
 \item{save.id}{A character string vector of length equal to file.range indicating the names of the output files if save.console=T. DEFAULT=(ConsoleN for every data set)}
 
-Input File Parameters:
+Input File Parameters: (Will be passed to FPalyze function)
 
-\item{variant.concentrations}{what are the concentrations of the variant molecule, nM}
-\item{data.size}{is the experiment size half (2 replicates) or full (4 replicates), half/full}
-\item{time.step}{frequency of data collection, s}
-\item{t.zero}{estimated start-read delay time, min}
-\item{incubation.time}{window of data collection, min}
-\item{coerce.timepoints}{should these time-points be forced if they don't match the raw data, T/F}
-\item{equilibrium.points}{average the last __ data points for equilibrium calculations}
-\item{outliers}{what are the outlier samples in your experiment, none/A1:P24}
-\item{scale.data}{should the mP values be normalized to a 0-1 scale, T/F}
-\item{default.mP.values}{are you using pre-generated mP values, T/F}
-\item{background.subtraction}{should background subtraction be applied, T/F}
-\item{G.adjust}{should mP values be normalized with G-factor adjustment, T/F}
-\item{G.setting}{value that the G-factor should be set to, domain={x ε R | 0 < x ≤ Inf}}
-\item{estimate.initials}{should initial regression values be estimated from data, T/F}
-\item{reverse.timepoints}{should equilibrium points be sampled from the beginning instead, T/F}
-\item{regression.approach}{what regression method should be used for equilibrium binding curve, std/hill/both/none}
-\item{estimated.kd}{estimated Kd for regression, nM}
-\item{regress.data}{should the raw data be fit with regression and further modeled, T/F}
-\item{coerce.offrates}{should negative off-rates be coerced to zero, T/F}
-\item{start.kn1}{starting estimate of k-1 for null/displacement modeling, 1/s}
-\item{start.ktheta}{starting estimate of kø for displacement modeling, 1/M/s}
-\item{start.Bhalf}{starting estimate of normalization constant 1 for optimized model, nM}
-\item{start.N}{starting estimate of normalization constant 2 for optimized model}
-\item{match.optimizers}{should the optimization parameter values for null model be constrained to those solved for the displacement model, T/F}
-\item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F}
-\item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP}
-\item{legend.location}{location of legend for null/displacement models graph}
+\item{variant.concentrations}{what are the concentrations of the variant molecule, nM; DEFAULT -- 2-fold dilutions from 10µM if experiment.type='COMP', and from 1µM if experiment.type='Kd'}
+\item{data.size}{is the experiment size half (2 replicates) or full (4 replicates), half/full; DEFAULT -- 'full'}
+\item{time.step}{frequency of data collection, s; DEFAULT -- 30}
+\item{t.zero}{estimated start-read delay time, min; DEFAULT -- 1}
+\item{incubation.time}{window of data collection, min; DEFAULT -- 30 (experiment.type='Kd') or 120 (experiment.type='COMP')}
+\item{coerce.timepoints}{should these time-points be forced if they don't match the raw data, T/F; DEFAULT -- F}
+\item{equilibrium.points}{average the last __ data points for equilibrium calculations; DEFAULT -- 10}
+\item{outliers}{what are the outlier samples in your experiment, none/A1:P24; DEFAULT -- 'none'}
+\item{scale.data}{should the mP values be normalized to a 0-1 scale, T/F; DEFAULT -- F}
+\item{default.mP.values}{are you using pre-generated mP values, T/F; DEFAULT -- F}
+\item{background.subtraction}{should background subtraction be applied, T/F; DEFAULT -- T}
+\item{G.factor}{value that the G-factor should be set to, domain=(x ε R | 0 < x ≤ Inf); DEFAULT -- 1}
+\item{estimate.initials}{should initial regression values be estimated from data, T/F; DEFAULT -- T}
+\item{reverse.timepoints}{should equilibrium points be sampled from the beginning instead, T/F; DEFAULT -- F}
+\item{regression.approach}{what regression method should be used for equilibrium binding curve, std/hill/both/none; DEFAULT -- 'both'}
+\item{estimated.kd}{estimated Kd for regression, nM; DEFAULT -- NULL}
+\item{regress.data}{should the raw data be fit with regression and further modeled, T/F; DEFAULT -- T}
+\item{coerce.offrates}{should negative off-rates be coerced to zero, T/F; DEFAULT -- T}
+\item{start.kn1}{starting estimate of k-1 for null/displacement modeling, 1/s; DEFAULT -- NULL}
+\item{start.ktheta}{starting estimate of kø for displacement modeling, 1/M/s; DEFAULT -- NULL}
+\item{start.Bhalf}{starting estimate of normalization constant 1 for optimized model, nM; DEFAULT -- NULL}
+\item{start.N}{starting estimate of normalization constant 2 for optimized model; DEFAULT -- NULL}
+\item{match.optimizers}{should the optimization parameter values for null model be constrained to those solved for the displacement model, T/F; DEFAULT -- T}
+\item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F; DEFAULT -- F}
+\item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP; DEFAULT -- NULL}
+\item{legend.location}{location of legend for null/displacement models graph; DEFAULT -- 'bottomright'}
 }
 
 \value{
-Returns a list containing all variables created as part of the function. 
+Returns a list containing all variables created as part of the function.
 
 Files:
 
@@ -86,30 +83,27 @@ coerce.timepoints=F # should these time-points be forced if they don't match the
 equilibrium.points=10 # average the last __ data points for equilibrium calculations
 outliers=c('none') # what are the outlier samples in your experiment, none/A1:P24
 scale.data=F # should the mP values be normalized to a 0-1 scale, T/F
-default.mP.values=T # are you using pre-generated mP values, T/F
+default.mP.values=F # are you using pre-generated mP values, T/F
 if (default.mP.values==F){
   background.subtraction=T # should background subtraction be applied, T/F
-  G.adjust=F # should mP values be normalized with G-factor adjustment, T/F
-  if (G.adjust==F){
-    G.setting=1 # value that the G-factor should be set to, domain={x ε R | 0 < x ≤ Inf}
-  }
+  G.factor=1 # value that the G-factor should be set to, domain={x ε R | 0 < x ≤ Inf}
 }
-estimate.initials=F # should initial regression values be estimated from data, T/F
+estimate.initials=T # should initial regression values be estimated from data, T/F
 # if experiment.type=='Kd'
   reverse.timepoints=F # should equilibrium points be sampled from the beginning instead, T/F
   regression.approach='both' # what regression method should be used for equilibrium binding curve, std/hill/both/none
   if (estimate.initials==F){
-    estimated.kd=50 # estimated Kd for regression, nM
+    estimated.kd=NULL # estimated Kd for regression, nM
   }
 # if experiment.type=='COMP'
   regress.data=T # should the raw data be fit with regression and further modeled, T/F
   if (regress.data==T){
     coerce.offrates=T # should negative off-rates be coerced to zero, T/F
     if (estimate.initials==F){
-      start.kn1=8e-3 # starting estimate of k-1 for null/displacement modeling, 1/s
-      start.ktheta=1e2 # starting estimate of kø for displacement modeling, 1/M/s
-      start.Bhalf=1e2 # starting estimate of normalization constant 1 for optimized model, nM
-      start.N=1e0 # starting estimate of normalization constant 2 for optimized model
+      start.kn1=NULL # starting estimate of k-1 for null/displacement modeling, 1/s
+      start.ktheta=NULL # starting estimate of kø for displacement modeling, 1/M/s
+      start.Bhalf=NULL # starting estimate of normalization constant 1 for optimized model, nM
+      start.N=NULL # starting estimate of normalization constant 2 for optimized model
     }
     match.optimizers=T # should the optimization parameter values for null model be constrained to those solved for the displacement model, T/F
     manual.fEP.adjust=F # should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F

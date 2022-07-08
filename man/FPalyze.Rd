@@ -5,7 +5,7 @@
 Function to analyze Kd and off-rate data from fluorescence polarization experiments.
 }
 \usage{
-FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',use.defaults=T,simulated.data=F,parameters.file='PARAMETERS.R',save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console')
+FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright')
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd' or 'COMP'.}
@@ -14,9 +14,7 @@ FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzy
 \item{enzyme}{A single character string indicating the name of the protein tested. DEFAULT='Predator'}
 \item{prey.molecule}{A single character string indicating the name of the prey molecule tested. DEFAULT='Prey'}
 \item{decoy.molecule}{A single character string indicating the name of the decoy molecule tested. DEFAULT='Decoy'}
-\item{use.defaults}{A logical indicating if default analysis parameters should be used instead of an additional parameter input file. DEFAULT=T}
-\item{simulated.data}{A logical indicating if the input data is from a simulation; affects functionality for default analysis parameters. DEFAULT=F}
-\item{parameters.file}{A single character string indicating the name of the file containing explicit analysis parameters; necessary if use.defaults=F. DEFAULT='PARAMETERS.R'.}
+\item{parameters.file}{A single character string indicating the name of a file containing explicit analysis parameters. DEFAULT=NULL.}
 \item{save.data}{A logical indicating if the generated R data should be written to an output file. DEFAULT=T}
 \item{save.name}{A single character string indicating the name of the output file if save.data=T. DEFAULT='Results'}
 \item{plot.pdf}{A logical indicating if the generated plots should be written to an output file. DEFAULT=F}
@@ -55,7 +53,7 @@ Input File Parameters:
 }
 
 \value{
-Returns a list containing all variables created as part of the function. 
+Returns a list containing all variables created as part of the function.
 
 Files:
 
