@@ -51,6 +51,10 @@ Input File Parameters: (Will be passed to FPalyze function)
 \item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F; DEFAULT -- F}
 \item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP; DEFAULT -- NULL}
 \item{legend.location}{location of legend for null/displacement models graph; DEFAULT -- 'bottomright'}
+\item{total.P}{total concentration of prey molecule in reaction, nM; DEFAULT -- 5 (experiment.type=='Kd' & regression.approach=='quad') or 250 (experiment.type=='STOICH')}
+\item{estimated.S}{starting estimate of the stoichiometric number of ligands bound per unit of protein; DEFAULT -- NULL}
+\item{estimated.Mn}{starting estimate of minimum polarization signal in a binding curve, mP; DEFAULT -- NULL}
+\item{estimated.Mx}{starting estimate of maximum polarization signal in a binding curve, mP; DEFAULT -- NULL}
 }
 
 \value{
@@ -94,6 +98,15 @@ estimate.initials=T # should initial regression values be estimated from data, T
   regression.approach='both' # what regression method should be used for equilibrium binding curve, std/hill/both/none
   if (estimate.initials==F){
     estimated.kd=NULL # estimated Kd for regression, nM
+  }
+# if experiment.type=='STOICH'
+  reverse.timepoints=F # should equilibrium points be sampled from the beginning instead, T/F
+  total.P=NULL # total concentration of prey molecule in reaction, nM
+  if (estimate.initials==F){
+    estimated.kd=NULL # estimated Kd for regression, nM
+    estimated.S=NULL # starting estimate of the stoichiometric number of ligands bound per unit of protein
+    estimated.Mx=NULL # starting estimate of maximum polarization signal in a binding curve, mP
+    estimated.Mn=NULL # starting estimate of minimum polarization signal in a binding curve, mP
   }
 # if experiment.type=='COMP'
   regress.data=T # should the raw data be fit with regression and further modeled, T/F

@@ -193,10 +193,15 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     }
 
     # Fit equilibrium binding curve data
-    if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
-    if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+    if (experiment.type=='STOICH' | regression.approach=='quad'){
+      if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+      if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+    } else {
+      if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])}
+      if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])}
+    }
     if (estimate.initials==T){
-      if (regression.approach!='quad'){
+      if (regression.approach!='quad' & experiment.type=='Kd'){
         estimated.kd=variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]
       }
       if (regression.approach=='quad' | experiment.type=='STOICH'){
