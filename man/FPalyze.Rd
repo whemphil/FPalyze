@@ -5,10 +5,10 @@
 Function to analyze Kd and off-rate data from fluorescence polarization experiments.
 }
 \usage{
-FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright')
+FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright',total.P=NULL,estimated.S=NULL,estimated.Mn=NULL,estimated.Mx=NULL)
 }
 \arguments{
-\item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd' or 'COMP'.}
+\item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd', 'COMP', or 'STOICH'.}
 \item{path.to.file}{A single character string indicating the path to the directory where input file(s) are located. Output files will also go to this directory. DEFAULT=(working directory)}
 \item{file.name}{A character string vector of length 1 or 2, indicating the names of the raw input txt files. If the vector is of length 2, as expected when default.mP.values=F, the vector is expected to identify the parallel THEN perpindicular intensity files. DEFAULT=c('par.txt','perp.txt')}
 \item{enzyme}{A single character string indicating the name of the protein tested. DEFAULT='Predator'}
@@ -50,6 +50,10 @@ Input File Parameters:
 \item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F; DEFAULT -- F}
 \item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP; DEFAULT -- NULL}
 \item{legend.location}{location of legend for null/displacement models graph; DEFAULT -- 'bottomright'}
+\item{total.P}{total concentration of prey molecule in reaction, nM; DEFAULT -- 5 (experiment.type=='Kd' & regression.approach=='quad') or 250 (experiment.type=='STOICH')}
+\item{estimated.S}{starting estimate of the stoichiometric number of ligands bound per unit of protein; DEFAULT -- NULL}
+\item{estimated.Mn}{starting estimate of minimum polarization signal in a binding curve, mP; DEFAULT -- NULL}
+\item{estimated.Mx}{starting estimate of maximum polarization signal in a binding curve, mP; DEFAULT -- NULL}
 }
 
 \value{
@@ -93,6 +97,15 @@ estimate.initials=T # should initial regression values be estimated from data, T
   regression.approach='both' # what regression method should be used for equilibrium binding curve, std/hill/both/none
   if (estimate.initials==F){
     estimated.kd=NULL # estimated Kd for regression, nM
+  }
+# if experiment.type=='STOICH'
+  reverse.timepoints=F # should equilibrium points be sampled from the beginning instead, T/F
+  total.P=NULL # total concentration of prey molecule in reaction, nM
+  if (estimate.initials==F){
+    estimated.kd=NULL # estimated Kd for regression, nM
+    estimated.S=NULL # starting estimate of the stoichiometric number of ligands bound per unit of protein
+    estimated.Mx=NULL # starting estimate of maximum polarization signal in a binding curve, mP
+    estimated.Mn=NULL # starting estimate of minimum polarization signal in a binding curve, mP
   }
 # if experiment.type=='COMP'
   regress.data=T # should the raw data be fit with regression and further modeled, T/F

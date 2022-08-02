@@ -36,7 +36,11 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     match.optimizers=T,
                     manual.fEP.adjust=F,
                     FP.baseline=NULL,
-                    legend.location='bottomright'){
+                    legend.location='bottomright',
+                    total.P=NULL,
+                    estimated.S=NULL,
+                    estimated.Mn=NULL,
+                    estimated.Mx=NULL){
 
   ##### BEGIN SCRIPT
 
@@ -48,18 +52,25 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
 
   if (is.null(parameters.file)==T){
 
-    if (experiment.type=='Kd' & is.null(variant.concentrations)==T){
+    if ((experiment.type=='Kd' | experiment.type=='STOICH') & is.null(variant.concentrations)==T){
       variant.concentrations=signif(c(1e3/2^c(0:10),0),3) # what are the concentrations of the variant molecule, nM
     }
     if (experiment.type=='COMP' & is.null(variant.concentrations)==T){
       variant.concentrations=signif(c(1e4/2^c(0:10),0),3) # what are the concentrations of the variant molecule, nM
     }
     #
-    if (experiment.type=='Kd' & is.null(incubation.time)==T){
+    if ((experiment.type=='Kd' | experiment.type=='STOICH') & is.null(incubation.time)==T){
       incubation.time=30 # window of data collection, min
     }
     if (experiment.type=='COMP' & is.null(incubation.time)==T){
       incubation.time=120 # window of data collection, min
+    }
+    #
+    if (experiment.type=='Kd' & is.null(total.P)==T & regression.approach=='quad'){
+      total.P=5 # total concentration of prey molecule, nM
+    }
+    if (experiment.type=='STOICH' & is.null(total.P)==T){
+      total.P=250 # total concentration of prey molecule, nM
     }
 
   }
@@ -149,7 +160,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
   }
 
   # Scale raw data
-  if (experiment.type=='Kd'){
+  if (experiment.type=='Kd' | experiment.type=='STOICH'){
     if (scale.data==T){
       if (reverse.timepoints==F){
         data.scaled=(data-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.min(variant.concentrations),]))))/(mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.min(variant.concentrations),]))))
@@ -166,7 +177,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     data.scaled=(data-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))
   }
 
-  if (experiment.type=='Kd'){
+  if (experiment.type=='Kd' | experiment.type=='STOICH'){
     # Calculate equilibrium values from scaled data
     if (reverse.timepoints==F){
       data.scaled.eq=apply(data.scaled[(length(t)-equilibrium.points+1):length(t),,],c(2,3),mean)
@@ -182,9 +193,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     }
 
     # Fit equilibrium binding curve data
-    model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])
+    if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+    if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
     if (estimate.initials==T){
-      estimated.kd=variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]
+      if (regression.approach!='quad'){
+        estimated.kd=variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]
+      }
+      if (regression.approach=='quad' | experiment.type=='STOICH'){
+        estimated.kd=abs(variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]-0.5*total.P)
+        estimated.S=1
+        estimated.Mn=min(model.data[['FP']])
+        estimated.Mx=max(model.data[['FP']])
+      }
     }
     if (regression.approach=='std'){
       model=nls(FP~(E/(E+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']])),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
@@ -195,6 +215,12 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     if (regression.approach=='both'){
       model.std=nls(FP~(E/(E+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']])),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
       model.hill=nls(FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']]),n=1),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
+    }
+    if (regression.approach=='quad'){
+      model.quad=nls(FP~(Mx-Mn)*(((Pt+(E+Kd))-((Pt+(E+Kd))^2-4*Pt*E)^0.5)/(2*Pt))+Mn,model.data,list('Kd'=estimated.kd,'Mn'=min(model.data[['FP']]),'Mx'=max(model.data[['FP']])))
+    }
+    if (experiment.type=='STOICH'){
+      model.quadS=nls(FP~(Mx-Mn)*(((Pt+S*(E+Kd))-((Pt+S*(E+Kd))^2-4*Pt*S*E)^0.5)/(2*Pt))+Mn,model.data,list('Kd'=estimated.kd,'S'=estimated.S,'Mn'=estimated.Mn,'Mx'=estimated.Mx))
     }
   }
 
@@ -359,6 +385,67 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
     }
+    if (regression.approach=='quad'){
+      # Plot equilibrium binding curve
+      par(mfrow=c(2,1))
+      if (scale.data==T){
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
+
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
+      }
+      if (scale.data==F){
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
+
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
+      }
+
+      # Summarize binding curve regression
+      print(summary(model.quad)); print(paste(rep('#',times=100),collapse = ''),quote = F)
+
+      # Outlier Identification
+      if (outliers[1]=='none' & default.mP.values==F){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]=='none' & default.mP.values==T){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]!='none' & default.mP.values==F){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]!='none' & default.mP.values==T){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[-((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+    }
 
   }
   if (experiment.type=='Kd' & data.size=='half'){
@@ -502,6 +589,67 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       if (outliers[1]!='none' & default.mP.values==T){
         temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+    }
+    if (regression.approach=='quad'){
+      # Plot equilibrium binding curve
+      par(mfrow=c(2,1))
+      if (scale.data==T){
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
+
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
+      }
+      if (scale.data==F){
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
+
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
+      }
+
+      # Summarize binding curve regression
+      print(summary(model.quad)); print(paste(rep('#',times=100),collapse = ''),quote = F)
+
+      # Outlier Identification
+      if (outliers[1]=='none' & default.mP.values==F){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]=='none' & default.mP.values==T){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]!='none' & default.mP.values==F){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+        if (length(outlyers)>=1){
+          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (length(outlyers)==0){
+          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+      }
+      if (outliers[1]!='none' & default.mP.values==T){
+        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
         if (length(outlyers)>=1){
           print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
         }
@@ -880,6 +1028,30 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
     }
+  }
+  if (experiment.type=='STOICH'){
+    nlm.Kd=coefficients(model.quadS)[1]
+    nlm.S=coefficients(model.quadS)[2]
+    nlm.Mn=coefficients(model.quadS)[3]
+    nlm.Mx=coefficients(model.quadS)[4]
+    show(summary(model.quadS))
+
+    scale.dat.shi=(data.scaled.eq-nlm.Mn)/(nlm.Mx-nlm.Mn)
+    nlm.sims=data.frame('y'=predict(model.quadS,newdata = list('E'=min(variant.concentrations):max(variant.concentrations))),'x'=min(variant.concentrations):max(variant.concentrations))
+    nlm.sims.scaled=nlm.sims; nlm.sims.scaled$y=(nlm.sims$y-nlm.Mn)/(nlm.Mx-nlm.Mn)
+    nlm.int=total.P/nlm.S
+
+    plot(NULL,NULL,xlim=range(variant.concentrations),ylim=c(0,1),xlab=paste0('[',enzyme,'] (nM)'),ylab='Fraction Bound',main=paste(enzyme,' ',prey.molecule,'-Binding Stoichiometry'),cex.lab=1.5,cex.main=2,cex.axis=1.5)
+    points(variant.concentrations,rowMeans(scale.dat.shi))
+    lines(nlm.sims.scaled$x,nlm.sims.scaled$y)
+    arrows(x0 = variant.concentrations,x1 = variant.concentrations,y0 = rowMeans(scale.dat.shi)-apply(scale.dat.shi,1,sd), y1 = rowMeans(scale.dat.shi)+apply(scale.dat.shi,1,sd),code = 3,lwd = 1,angle = 90,length = 0.5)
+
+    abline(a=0,b=1/nlm.int,lty='solid',col='grey',lwd=3)
+    abline(v=total.P,lty='dashed',col='blue',lwd=2)
+    abline(v=nlm.int,lty='dashed',col='green',lwd=2)
+    legend('bottomright',legend=c('[Ligand]','[Protein]'),col = c('blue','green'),fill = c('blue','green'),cex=2)
+    text(x=0.5*max(variant.concentrations),y=0.4,labels=paste0('Ligand:Protein Stoichiometry = ',signif(nlm.S,2)),adj=c(0,1),col='red',cex=1.8)
+
   }
 
   if (plot.pdf==T){
