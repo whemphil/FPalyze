@@ -668,15 +668,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
 
   if (experiment.type=='COMP' & data.size=='full'){
     # Plot dissociation curves
-    par(mfrow=c(4,3))
+    par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
     cmp.models=list(NULL)
     cmp.models.coefficients.lambda=matrix(NA,ncol=4,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=4,nrow=length(variant.concentrations))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Dissociation:  ',decoy.molecule,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=0.8)
+        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Dissociation:  ',decoy.molecule,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=0.8)
+        plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+      }
+      if (i==1){
+        title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
       }
       if (regress.data==T){
         for (q in 1:4){
@@ -707,32 +710,38 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
 
     # Plot comparative dissociation curves
     if (regress.data==T){
-      par(fig=c(0,0.5,0.5,1))
+      par(fig=c(0,0.5,0.5,1),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
       if (scale.data==T){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60))
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=1.3,cex.lab=1.1)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       for (i in 12:1){
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3/i)
+          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t)),lwd=3/i)
+          lines(t/60,rep(1,times=length(t)),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
         }
       }
       if (scale.data==T){
-        text(incubation.time,1,labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(0*incubation.time,0.95,labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(0,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.95,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.95,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
       if (scale.data==F){
-        text(incubation.time,max(na.omit(c(data))),labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(0*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(0,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
 
       # Plot decoy-dependence curves
@@ -741,16 +750,15 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       k.off=cmp.models.coefficients.lambda*(1-cmp.models.coefficients.Mn); if (coerce.offrates==T){k.off[k.off<=0]=0}
       kt=min(na.omit(k.off))
-      par(fig=c(0.5,1,0.75,1),new=TRUE)
-      plot(variant.concentrations,rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE),main = "Decoy-Dependence of Regressions' λ",xlab = '[Decoy] (nM)',ylab = 'λ',type='p',cex.main=1.3,cex.lab=1.1)
-      arrows(x0 = variant.concentrations, x1 = variant.concentrations, y0 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) - apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) + apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0.5,1,0.5,0.75),new=TRUE)
-      plot(variant.concentrations,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = '[Decoy] (nM)',ylab = expression('Fraction [EP]'[0]),type='p',cex.main=1.3,cex.lab=1.1)
-      arrows(x0 = variant.concentrations, x1 = variant.concentrations, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0.01,1,0,0.5),new=TRUE)
-      plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE),main = 'Decoy-Dependence of Apparent Off-Rate',xlab = '[Decoy] (µM)',ylab = '',type='p',cex.main=2.3,cex.lab=1.8,cex.axis=1.5)
-      title(ylab = expression('k'['off']*' (s'^-1*')'),line = 2.1,cex.lab = 1.8)
-      arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0.5,1,0.75,1),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE),main = "Decoy-Dependence of λ",xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = 'λ',type='p',cex.main=2,cex.lab=2,cex.axis=2)
+      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) - apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) + apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0.5,1,0.5,0.75),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0,1,0,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]),xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = expression('k'['off']*' x10'^-3*' (s'^-1*')'),type='p',cex.main=3,cex.lab=2.5,cex.axis=2.5)
+      arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE)*1e3 - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off,na.rm = TRUE)*1e3 + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
 
       # Generate competition models
       fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
@@ -770,10 +778,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (exists('fun.model.opt')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='green',lwd=2,lty='dashed')
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=2,lty='dashed')
       }
       if (exists('fun.model.opt2')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='purple',lwd=2,lty='dashed')
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=2,lty='dashed')
         legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
       }
 
@@ -852,15 +860,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
   }
   if (experiment.type=='COMP' & data.size=='half'){
     # Plot dissociation curves
-    par(mfrow=c(4,3))
+    par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
     cmp.models=list(NULL)
     cmp.models.coefficients.lambda=matrix(NA,ncol=2,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=2,nrow=length(variant.concentrations))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Dissociation:  ',decoy.molecule,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=0.8)
+        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(rep(t/60,times=2),c(data[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Dissociation:  ',decoy.molecule,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=0.8)
+        plot(rep(t/60,times=2),c(data[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+      }
+      if (i==1){
+        title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
       }
       if (regress.data==T){
         for (q in 1:2){
@@ -891,32 +902,38 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
 
     # Plot comparative dissociation curves
     if (regress.data==T){
-      par(fig=c(0,0.5,0.5,1))
+      par(fig=c(0,0.5,0.5,1),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
       if (scale.data==T){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60))
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=1.3,cex.lab=1.1)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       for (i in 12:1){
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3/i)
+          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t)),lwd=3/i)
+          lines(t/60,rep(1,times=length(t)),lwd=3,col=grey.colors(12)[i])
         }
         if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3/i)
+          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
         }
       }
       if (scale.data==T){
-        text(incubation.time,1,labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(0*incubation.time,0.95,labels = paste0('[',decoy.molecule,'] (µM) ='),adj = c(0,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.95,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.95,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
       if (scale.data==F){
-        text(incubation.time,max(na.omit(c(data))),labels = paste('Dark --> Light: ',variant.concentrations[1],' --> ',variant.concentrations[12],' nM Decoy',sep = ''),adj = c(1,1))
+        fields::colorbar.plot(x = 0.7*incubation.time,y = 0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(0*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM) ='),adj = c(0,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
 
       # Plot decoy-dependence curves
@@ -925,16 +942,15 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       k.off=cmp.models.coefficients.lambda*(1-cmp.models.coefficients.Mn); if (coerce.offrates==T){k.off[k.off<=0]=0}
       kt=min(na.omit(k.off))
-      par(fig=c(0.5,1,0.75,1),new=TRUE)
-      plot(variant.concentrations,rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE),main = "Decoy-Dependence of Regressions' λ",xlab = '[Decoy] (nM)',ylab = 'λ',type='p',cex.main=1.3,cex.lab=1.1)
-      arrows(x0 = variant.concentrations, x1 = variant.concentrations, y0 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) - apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) + apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0.5,1,0.5,0.75),new=TRUE)
-      plot(variant.concentrations,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = '[Decoy] (nM)',ylab = expression('Fraction [EP]'[0]),type='p',cex.main=1.3,cex.lab=1.1)
-      arrows(x0 = variant.concentrations, x1 = variant.concentrations, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0.01,1,0,0.5),new=TRUE)
-      plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE),main = 'Decoy-Dependence of Apparent Off-Rate',xlab = '[Decoy] (µM)',ylab = '',type='p',cex.main=2.3,cex.lab=1.8,cex.axis=1.5)
-      title(ylab = expression('k'['off']*' (s'^-1*')'),line = 2.1,cex.lab = 1.8)
-      arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE) - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(k.off,na.rm = TRUE) + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0.5,1,0.75,1),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE),main = "Decoy-Dependence of λ",xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = 'λ',type='p',cex.main=2,cex.lab=2,cex.axis=2)
+      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) - apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) + apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0.5,1,0.5,0.75),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      par(fig=c(0,1,0,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+      plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]),xlab = paste0('[',decoy.molecule,'] (µM)'),ylab = expression('k'['off']*' x10'^-3*' (s'^-1*')'),type='p',cex.main=3,cex.lab=2.5,cex.axis=2.5)
+      arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE)*1e3 - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off,na.rm = TRUE)*1e3 + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
 
       # Generate competition models
       fun.data=list('x'=(rep(variant.concentrations,times=2))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
@@ -954,10 +970,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
       }
       if (exists('fun.model.opt')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='green',lwd=2,lty='dashed')
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=2,lty='dashed')
       }
       if (exists('fun.model.opt2')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))+kt,col='purple',lwd=2,lty='dashed')
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=2,lty='dashed')
         legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
       }
 
