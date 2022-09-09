@@ -732,16 +732,16 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
       if (scale.data==T){
-        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text(0*incubation.time,0.95,labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(0,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.95,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.95,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(1*incubation.time,1,labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(1,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.9,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.9,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
       if (scale.data==F){
-        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text(0*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(0,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(1*incubation.time,1*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(1,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
 
       # Plot decoy-dependence curves
@@ -782,7 +782,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=2,lty='dashed')
-        legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
+        legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
       }
 
       # Report and compare models
@@ -924,16 +924,16 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         }
       }
       if (scale.data==T){
-        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.95,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text(0*incubation.time,0.95,labels = paste0('[',decoy.molecule,'] (µM) ='),adj = c(0,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.95,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.95,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(1*incubation.time,1,labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(1,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.9,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.9,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
       if (scale.data==F){
-        fields::colorbar.plot(x = 0.7*incubation.time,y = 0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text(0*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM) ='),adj = c(0,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.95*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
+        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+        text(1*incubation.time,1*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[',decoy.molecule,'] (µM):'),adj = c(1,0.5),cex=2)
+        text((0.75-0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+        text((0.75+0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
       }
 
       # Plot decoy-dependence curves
@@ -974,7 +974,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=2,lty='dashed')
-        legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.7)
+        legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
       }
 
       # Report and compare models
