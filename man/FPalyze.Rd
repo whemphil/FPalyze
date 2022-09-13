@@ -25,7 +25,7 @@ FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzy
 Input File Parameters:
 
 \item{variant.concentrations}{what are the concentrations of the variant molecule, nM; DEFAULT -- 2-fold dilutions from 10µM if experiment.type='COMP', and from 1µM if experiment.type='Kd'}
-\item{data.size}{is the experiment size half (2 replicates) or full (4 replicates), half/full; DEFAULT -- 'full'}
+\item{data.size}{is the experiment size single (1 replicate), half (2 replicates), or full (4 replicates), single/half/full; DEFAULT -- 'full'}
 \item{time.step}{frequency of data collection, s; DEFAULT -- 30}
 \item{t.zero}{estimated start-read delay time, min; DEFAULT -- 1}
 \item{incubation.time}{window of data collection, min; DEFAULT -- 30 (experiment.type='Kd') or 120 (experiment.type='COMP')}
