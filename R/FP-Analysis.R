@@ -21,7 +21,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     outliers='none',
                     scale.data=F,
                     default.mP.values=F,
-                    background.subtraction=T,
+                    background.subtraction=F,
                     G.factor=1,
                     estimate.initials=T,
                     reverse.timepoints=F,
@@ -1038,7 +1038,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3,lty='dashed')
         #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        legend(legend.location,legend = c('Classic Competition Model','"Hand-Off" Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
+        legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
       }
 
       # Report and compare models
@@ -1046,7 +1046,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (exists('fun.model.opt2')==T){
-        print(paste('Displacement-Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        print(paste('Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (exists('fun.model.opt2')==T & exists('fun.model.opt')==T){
         model.comparison=BIC(fun.model.opt,fun.model.opt2)
@@ -1055,7 +1055,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
         if (delta.BIC<=-10){
-          print('These data favor the DISPLACEMENT model!',quote = F)
+          print('These data favor the DIRECT TRANSFER model!',quote = F)
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -1232,7 +1232,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3,lty='dashed')
         #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        legend(legend.location,legend = c('Classic Competition Model','"Hand-Off" Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
+        legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
       }
 
       # Report and compare models
@@ -1240,7 +1240,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (exists('fun.model.opt2')==T){
-        print(paste('Displacement-Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        print(paste('Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (exists('fun.model.opt2')==T & exists('fun.model.opt')==T){
         model.comparison=BIC(fun.model.opt,fun.model.opt2)
@@ -1249,7 +1249,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
         print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
         if (delta.BIC<=-10){
-          print('These data favor the DISPLACEMENT model!',quote = F)
+          print('These data favor the DIRECT TRANSFER model!',quote = F)
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
