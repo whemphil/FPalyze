@@ -40,7 +40,8 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     total.P=NULL,
                     estimated.S=NULL,
                     estimated.Mn=NULL,
-                    estimated.Mx=NULL){
+                    estimated.Mx=NULL,
+                    show.constants=T){
 
   ##### BEGIN SCRIPT
 
@@ -1034,11 +1035,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       if (exists('fun.model.opt')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=3,lty='dashed')
+        if (show.constants==T){
+          cc.temp = signif((summary(fun.model.opt)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='green')
+        }
       }
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3,lty='dashed')
         #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
         legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
+        if (show.constants==T){
+          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
+          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][4,1]),2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
+        }
       }
 
       # Report and compare models
@@ -1059,11 +1067,17 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'purple',adj=c(1.5,0.5))
+          }
         }
         if (delta.BIC>=5){
           print('These data favor the CLASSIC model!',quote = F)
           print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'green',adj=c(1.5,0.5))
+          }
         }
         if (delta.BIC>-10 & delta.BIC<5){
           print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -1072,6 +1086,9 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
+          }
         }
       }
 
@@ -1228,11 +1245,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       }
       if (exists('fun.model.opt')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=3,lty='dashed')
+        if (show.constants==T){
+          cc.temp = signif((summary(fun.model.opt)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='green')
+        }
       }
       if (exists('fun.model.opt2')==T){
         lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3,lty='dashed')
         #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
         legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
+        if (show.constants==T){
+          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
+          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][4,1]),2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
+        }
       }
 
       # Report and compare models
@@ -1253,11 +1277,17 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'purple',adj=c(1.5,0.5))
+          }
         }
         if (delta.BIC>=5){
           print('These data favor the CLASSIC model!',quote = F)
           print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'green',adj=c(1.5,0.5))
+          }
         }
         if (delta.BIC>-10 & delta.BIC<5){
           print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
@@ -1266,6 +1296,9 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (show.constants==T){
+            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
+          }
         }
       }
 
