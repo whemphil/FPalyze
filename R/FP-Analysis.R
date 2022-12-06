@@ -14,7 +14,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     variant.concentrations=NULL,
                     data.size='full',
                     time.step=30,
-                    t.zero=1,
+                    t.zero=1.5,
                     incubation.time=NULL,
                     coerce.timepoints=F,
                     equilibrium.points=10,
@@ -1068,7 +1068,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'purple',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.05+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'purple',adj=c(1.5,0.5))
           }
         }
         if (delta.BIC>=5){
@@ -1076,7 +1076,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'green',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.15+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'green',adj=c(1.5,0.5))
           }
         }
         if (delta.BIC>-10 & delta.BIC<5){
@@ -1087,7 +1087,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.5,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
           }
         }
       }
@@ -1278,7 +1278,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'purple',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.05+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'purple',adj=c(1.5,0.5))
           }
         }
         if (delta.BIC>=5){
@@ -1286,7 +1286,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'green',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.15+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'green',adj=c(1.5,0.5))
           }
         }
         if (delta.BIC>-10 & delta.BIC<5){
@@ -1297,7 +1297,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
           print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
           print(paste(rep('#',times=100),collapse = ''),quote = F)
           if (show.constants==T){
-            text(max(variant.concentrations)*1e-3/2,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
+            text(max(variant.concentrations)*1e-3*0.5,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
           }
         }
       }
