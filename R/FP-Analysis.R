@@ -297,10 +297,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     par(mfrow=c(4,3))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       if (scale.data==F){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
     }
@@ -309,10 +309,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization')
+        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)')
+        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
       }
       lines(variant.concentrations,rowMeans(data.eq,na.rm = TRUE),col='blue',lty='dashed')
     }
@@ -320,10 +320,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -334,10 +334,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -348,24 +348,24 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
@@ -445,18 +445,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
@@ -509,10 +509,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     par(mfrow=c(4,3))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       if (scale.data==F){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
     }
@@ -521,10 +521,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization')
+        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)')
+        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
       }
       lines(variant.concentrations,rowMeans(data.eq,na.rm = TRUE),col='blue',lty='dashed')
     }
@@ -532,10 +532,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -546,10 +546,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -560,24 +560,24 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
@@ -657,18 +657,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
@@ -722,10 +722,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     par(mfrow=c(4,3))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       if (scale.data==F){
-        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       lines(t/60,data.scaled[,i,],col='red',lwd=4)
     }
@@ -734,10 +734,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization')
+        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)')
+        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
       }
       lines(variant.concentrations,data.eq,col='blue',lty='dashed')
     }
@@ -745,10 +745,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -759,10 +759,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(1,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(0,max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
       }
       lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
 
@@ -773,23 +773,23 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
 
-        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
         legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
@@ -868,18 +868,18 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       # Plot equilibrium binding curve
       par(mfrow=c(2,1))
       if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'Relative EQ-Polarization',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
       if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = 'EQ-Polarization (mP)',ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
         arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
       }
@@ -935,10 +935,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     cmp.models.coefficients.lambda=matrix(NA,ncol=4,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=4,nrow=length(variant.concentrations))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (i==1){
         title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
@@ -974,10 +974,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     if (regress.data==T){
       par(fig=c(0,0.5,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
       if (scale.data==T){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       for (i in 12:1){
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
@@ -1145,10 +1145,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     cmp.models.coefficients.lambda=matrix(NA,ncol=2,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=2,nrow=length(variant.concentrations))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(rep(t/60,times=2),c(data[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=2),c(data[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (i==1){
         title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
@@ -1184,10 +1184,10 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
     if (regress.data==T){
       par(fig=c(0,0.5,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
       if (scale.data==T){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Relative Polarization',ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = 'Polarization (mP)',ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
       }
       for (i in 12:1){
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
