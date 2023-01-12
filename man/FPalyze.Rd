@@ -5,7 +5,7 @@
 Function to analyze Kd and off-rate data from fluorescence polarization experiments.
 }
 \usage{
-FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright',total.P=NULL,estimated.S=NULL,estimated.Mn=NULL,estimated.Mx=NULL)
+FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright',total.P=NULL,estimated.S=NULL,estimated.Mn=NULL,estimated.Mx=NULL,show.constants=T,use.anisotropy=T)
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd', 'COMP', or 'STOICH'.}
@@ -54,6 +54,8 @@ Input File Parameters:
 \item{estimated.S}{starting estimate of the stoichiometric number of ligands bound per unit of protein; DEFAULT -- NULL}
 \item{estimated.Mn}{starting estimate of minimum polarization signal in a binding curve, mP; DEFAULT -- NULL}
 \item{estimated.Mx}{starting estimate of maximum polarization signal in a binding curve, mP; DEFAULT -- NULL}
+\item{show.constants}{should determined rate constant values and statistics be added to plots, T/F; DEFAULT -- T}
+\item{use.anisotropy}{should anisotropy be calculated instead of polarization, T/F; DEFAULT -- T}
 }
 
 \value{
@@ -68,7 +70,7 @@ Files:
 
 \examples{
 
-EXAMPLE 'PARAMETERS.R' FILE:
+EXAMPLE 'PARAMETERS.R' FILE (warning -- outdated file):
 
 ### Explicit Analysis Definition
 

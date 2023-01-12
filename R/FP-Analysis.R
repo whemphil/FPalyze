@@ -41,7 +41,8 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     estimated.S=NULL,
                     estimated.Mn=NULL,
                     estimated.Mx=NULL,
-                    show.constants=T){
+                    show.constants=T,
+                    use.anisotropy=T){
 
   ##### BEGIN SCRIPT
 
@@ -175,7 +176,13 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       data.perp=data.perp-mean(as.matrix(raw.perp[,14:17]))
     }
     data.mP=1000*(data.par-G.factor*data.perp)/(data.par+G.factor*data.perp)
-    data=data.mP
+    data.A=(data.par-G.factor*data.perp)/(data.par+2*G.factor*data.perp)
+    if(use.anisotropy==F){
+      data=data.mP
+    }
+    if(use.anisotropy==T){
+      data=data.A
+    }
   }
 
   # Scale raw data
