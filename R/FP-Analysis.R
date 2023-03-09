@@ -1392,7 +1392,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
 
 }
 
-file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.csv',perp.file='perp.csv',path.to.file='./'){
+file.parse <- function(data.rows,background.rows=NULL,exp.type='full',par.file='par.csv',perp.file='perp.csv',path.to.file='./'){
 
   setwd(path.to.file)
   raw.par=read.csv(file = par.file,sep = ',',header = TRUE)
@@ -1402,14 +1402,16 @@ file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.c
   if (exp.type=='single'){
     exp.n=length(data.rows)*2
     for (i in 1:exp.n){
-      back.set=paste0(background.rows[i],1:24)
+      if (is.null(background.rows)==F){
+        back.set=paste0(background.rows[i],1:24)
+      }
       if (i%%2==1){
         data.set=paste0(data.rows[round(i/2+0.01)],1:12)
       }
       if (i%%2==0){
         data.set=paste0(data.rows[round(i/2+0.01)],13:24)
       }
-      whole.set=c('Time..s.',data.set,back.set)
+      whole.set=c('Time..s.',data.set,if(is.null(background.rows)==F){back.set})
       par.set[[i]]=raw.par[,(colnames(raw.par)%in%whole.set)]
       perp.set[[i]]=raw.perp[,(colnames(raw.perp)%in%whole.set)]
       write.table(x = par.set[[i]],file = paste0('par',i,'.txt'),quote = FALSE,sep = '\t',row.names = FALSE,col.names = TRUE)
@@ -1419,9 +1421,11 @@ file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.c
   if (exp.type=='half'){
     exp.n=length(data.rows)
     for (i in 1:exp.n){
-      back.set=paste0(background.rows[i],1:24)
+      if (is.null(background.rows)==F){
+        back.set=paste0(background.rows[i],1:24)
+      }
       data.set=paste0(data.rows[i],1:24)
-      whole.set=c('Time..s.',data.set,back.set)
+      whole.set=c('Time..s.',data.set,if(is.null(background.rows)==F){back.set})
       par.set[[i]]=raw.par[,(colnames(raw.par)%in%whole.set)]
       perp.set[[i]]=raw.perp[,(colnames(raw.perp)%in%whole.set)]
       write.table(x = par.set[[i]],file = paste0('par',i,'.txt'),quote = FALSE,sep = '\t',row.names = FALSE,col.names = TRUE)
@@ -1431,9 +1435,11 @@ file.parse <- function(data.rows,background.rows,exp.type='full',par.file='par.c
   if (exp.type=='full'){
     exp.n=length(data.rows)/2
     for (i in 1:exp.n){
-      back.set=paste0(background.rows[i],1:24)
+      if (is.null(background.rows)==F){
+        back.set=paste0(background.rows[i],1:24)
+      }
       data.set=c(paste0(data.rows[2*(i-1)+1],1:24),paste0(data.rows[2*(i-1)+2],1:24))
-      whole.set=c('Time..s.',data.set,back.set)
+      whole.set=c('Time..s.',data.set,if(is.null(background.rows)==F){back.set})
       par.set[[i]]=raw.par[,(colnames(raw.par)%in%whole.set)]
       perp.set[[i]]=raw.perp[,(colnames(raw.perp)%in%whole.set)]
       write.table(x = par.set[[i]],file = paste0('par',i,'.txt'),quote = FALSE,sep = '\t',row.names = FALSE,col.names = TRUE)
