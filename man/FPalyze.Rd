@@ -5,7 +5,48 @@
 Function to analyze Kd and off-rate data from fluorescence polarization experiments.
 }
 \usage{
-FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',variant.concentrations=NULL,data.size='full',time.step=30,t.zero=1,incubation.time=NULL,coerce.timepoints=F,equilibrium.points=10,outliers='none',scale.data=F,default.mP.values=F,background.subtraction=T,G.factor=1,estimate.initials=T,reverse.timepoints=F,regression.approach='both',estimated.kd=NULL,regress.data=T,coerce.offrates=T,start.kn1=NULL,start.ktheta=NULL,start.Bhalf=NULL,start.N=NULL,match.optimizers=T,manual.fEP.adjust=F,FP.baseline=NULL,legend.location='bottomright',total.P=NULL,estimated.S=NULL,estimated.Mn=NULL,estimated.Mx=NULL,show.constants=T,use.anisotropy=T)
+FPalyze(experiment.type,
+        path.to.file='./',
+        file.name=c('par.txt','perp.txt'),
+        enzyme='Predator',
+        prey.molecule='Prey',
+        decoy.molecule='Decoy',
+        parameters.file=NULL,
+        save.data=T,
+        save.name='Results',
+        plot.pdf=F,
+        plot.name='Graphs',
+        save.console=T,
+        save.id='Console',
+        variant.concentrations=NULL,
+        data.size='full',
+        time.step=30,
+        t.zero=1,
+        incubation.time=NULL,
+        coerce.timepoints=F,
+        equilibrium.points=10,
+        outliers='none',
+        scale.data=F,
+        default.mP.values=F,
+        background.subtraction=F,
+        G.factor=1,
+        reverse.timepoints=F,
+        regression.approach='both',
+        estimated.kd=NULL,
+        regress.data=T,
+        coerce.offrates=T,
+        match.optimizers=T,
+        manual.fEP.adjust=F,
+        FP.baseline=NULL,
+        legend.location='bottomright',
+        total.P=NULL,
+        estimated.S=NULL,
+        estimated.Mn=NULL,
+        estimated.Mx=NULL,
+        show.constants=F,
+        use.anisotropy=T,
+        exponentials=1,
+        fit.DT.mdls=T)
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd', 'COMP', or 'STOICH'.}
@@ -22,7 +63,7 @@ FPalyze(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzy
 \item{save.console}{A logical indicating if the generated console information should be written to an output file. DEFAULT=T}
 \item{save.id}{A single character string indicating the name of the output file if save.console=T. DEFAULT='Console'}
 
-Input File Parameters:
+Additional Parameters:
 
 \item{variant.concentrations}{what are the concentrations of the variant molecule, nM; DEFAULT -- 2-fold dilutions from 10µM if experiment.type='COMP', and from 1µM if experiment.type='Kd'}
 \item{data.size}{is the experiment size single (1 replicate), half (2 replicates), or full (4 replicates), single/half/full; DEFAULT -- 'full'}
@@ -42,10 +83,6 @@ Input File Parameters:
 \item{estimated.kd}{estimated Kd for regression, nM; DEFAULT -- NULL}
 \item{regress.data}{should the raw data be fit with regression and further modeled, T/F; DEFAULT -- T}
 \item{coerce.offrates}{should negative off-rates be coerced to zero, T/F; DEFAULT -- T}
-\item{start.kn1}{starting estimate of k-1 for null/displacement modeling, 1/s; DEFAULT -- NULL}
-\item{start.ktheta}{starting estimate of kø for displacement modeling, 1/M/s; DEFAULT -- NULL}
-\item{start.Bhalf}{starting estimate of normalization constant 1 for optimized model, nM; DEFAULT -- NULL}
-\item{start.N}{starting estimate of normalization constant 2 for optimized model; DEFAULT -- NULL}
 \item{match.optimizers}{should the optimization parameter values for null model be constrained to those solved for the displacement model, T/F; DEFAULT -- T}
 \item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F; DEFAULT -- F}
 \item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP; DEFAULT -- NULL}
@@ -54,8 +91,10 @@ Input File Parameters:
 \item{estimated.S}{starting estimate of the stoichiometric number of ligands bound per unit of protein; DEFAULT -- NULL}
 \item{estimated.Mn}{starting estimate of minimum polarization signal in a binding curve, mP; DEFAULT -- NULL}
 \item{estimated.Mx}{starting estimate of maximum polarization signal in a binding curve, mP; DEFAULT -- NULL}
-\item{show.constants}{should determined rate constant values and statistics be added to plots, T/F; DEFAULT -- T}
+\item{show.constants}{should determined rate constant values and statistics be added to plots, T/F; DEFAULT -- F}
 \item{use.anisotropy}{should anisotropy be calculated instead of polarization, T/F; DEFAULT -- T}
+\item{exponentials}{should a single or double exponential model be used for dissociation curves, 1-2; DEFAULT -- 1}
+\item{fit.DT.mdls}{should dissociation rates versus decoy concentration be further regressed and modeled, T/F; DEFAULT -- T}
 }
 
 \value{

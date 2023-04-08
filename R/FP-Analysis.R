@@ -10,11 +10,23 @@
 
 ###############
 
-FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','perp.txt'),enzyme='Predator',prey.molecule='Prey',decoy.molecule='Decoy',parameters.file=NULL,save.data=T,save.name='Results',plot.pdf=F,plot.name='Graphs',save.console=T,save.id='Console',
+FPalyze <- function(experiment.type,
+                    path.to.file='./',
+                    file.name=c('par.txt','perp.txt'),
+                    enzyme='Predator',
+                    prey.molecule='Prey',
+                    decoy.molecule='Decoy',
+                    parameters.file=NULL,
+                    save.data=T,
+                    save.name='Results',
+                    plot.pdf=F,
+                    plot.name='Graphs',
+                    save.console=T,
+                    save.id='Console',
                     variant.concentrations=NULL,
                     data.size='full',
                     time.step=30,
-                    t.zero=1.5,
+                    t.zero=1,
                     incubation.time=NULL,
                     coerce.timepoints=F,
                     equilibrium.points=10,
@@ -23,16 +35,11 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     default.mP.values=F,
                     background.subtraction=F,
                     G.factor=1,
-                    estimate.initials=T,
                     reverse.timepoints=F,
                     regression.approach='both',
                     estimated.kd=NULL,
                     regress.data=T,
                     coerce.offrates=T,
-                    start.kn1=NULL,
-                    start.ktheta=NULL,
-                    start.Bhalf=NULL,
-                    start.N=NULL,
                     match.optimizers=T,
                     manual.fEP.adjust=F,
                     FP.baseline=NULL,
@@ -41,8 +48,137 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
                     estimated.S=NULL,
                     estimated.Mn=NULL,
                     estimated.Mx=NULL,
-                    show.constants=T,
-                    use.anisotropy=T){
+                    show.constants=F,
+                    use.anisotropy=T,
+                    exponentials=1,
+                    fit.DT.mdls=T){
+
+  DED.fit <- function(data){
+    FXNa = FP ~ Mn + (1 - Mn)*s*exp(-lambda.1*tt) + (1 - Mn)*(1 - s)*exp(-lambda.1*beta*tt)
+    FXNb = FP ~ 0.5*((exp(-1*lambda.1*tt)+Mn1*(1-exp(-1*lambda.1*tt))) + (exp(-1*lambda.1*beta*tt)+Mn2*(1-exp(-1*lambda.1*beta*tt))))
+    # step 1a
+    mdl.pre = smooth.spline(x = c(0,data$tt),y = c(1,data$FP),spar = 0.5)
+    minAVG <- min(predict(mdl.pre,x=data$tt,deriv = 0)$y)
+    # step 1b
+    start.grid=expand.grid(lambda.1 = 10^c(-4:0),
+                           beta = 2^c(-8:-1),
+                           Mn = minAVG,
+                           s = seq(0.1,0.9,0.1))
+    mdl.1=nls2::nls2(FXNa,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-6,warnOnly=TRUE))
+    # step 2
+    start.grid=expand.grid(lambda.1 = coefficients(mdl.1)[['lambda.1']]*10^seq(-1,1,len = 11),
+                           beta = coefficients(mdl.1)[['beta']]*2^seq(-1,1,len = 11),
+                           Mn = coefficients(mdl.1)[['Mn']]+seq(-0.05,0.05,len = 11),
+                           s = coefficients(mdl.1)[['s']]+seq(-0.05,0.05,len = 11))
+    mdl.2=nls2::nls2(FXNa,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-6,warnOnly=TRUE))
+    # step 3
+    start.Mn1 = 1 - 2*(1 - coefficients(mdl.2)[['Mn']])*coefficients(mdl.2)[['s']]
+    start.Mn2 = 2*coefficients(mdl.2)[['Mn']] + 2*(1 - coefficients(mdl.2)[['Mn']])*coefficients(mdl.2)[['s']] - 1
+    start.grid=expand.grid(lambda.1 = coefficients(mdl.2)[['lambda.1']]*10^seq(-0.2,0.2,len = 6),
+                           beta = coefficients(mdl.2)[['beta']]*2^seq(-0.2,0.2,len = 6),
+                           Mn1 = start.Mn1+seq(-0.01,0.01,len = 6),
+                           Mn2 = start.Mn2+seq(-0.01,0.01,len = 6))
+    mdl.3=nls2::nls2(FXNb,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-6,warnOnly=TRUE))
+    # step 4
+    try(mdl.4 <- nls2::nls2(FXNb,data,start=list('lambda.1'=coefficients(mdl.3)[['lambda.1']],'beta'=coefficients(mdl.3)[['beta']],'Mn1'=coefficients(mdl.3)[['Mn1']],'Mn2'=coefficients(mdl.3)[['Mn2']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    if (exists('mdl.4')==T){
+      return(mdl.4)
+    } else {
+      return(mdl.3)
+    }
+  }
+
+  DT.fit <- function(data,match.optimizers){
+    FXNnull = y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)
+    FXNdt = y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)+k.theta*(x*1e-9)
+    # step 1a
+    start.grid=expand.grid(k.n1 = 10^c(-5:0),
+                           k.theta = 10^c(0:4),
+                           N = 2^c(-3:3),
+                           Bhalf = 1e4*4^c(-2:-5))
+    mdl.DT1=nls2::nls2(FXNdt,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    # step 1b
+    start.grid=expand.grid(k.n1 = coefficients(mdl.DT1)[['k.n1']]*10^seq(-1,1,len=6),
+                           k.theta = coefficients(mdl.DT1)[['k.theta']]*10^seq(-1,1,len=6),
+                           N = coefficients(mdl.DT1)[['N']]*2^seq(-1,1,len=6),
+                           Bhalf = coefficients(mdl.DT1)[['Bhalf']]*4^seq(-1,1,len=6))
+    mdl.DT2=nls2::nls2(FXNdt,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    # step 1c
+    start.grid=expand.grid(k.n1 = coefficients(mdl.DT2)[['k.n1']]*10^seq(-0.4,0.4,len=6),
+                           k.theta = coefficients(mdl.DT2)[['k.theta']]*10^seq(-0.4,0.4,len=6),
+                           N = coefficients(mdl.DT2)[['N']]*2^seq(-0.4,0.4,len=6),
+                           Bhalf = coefficients(mdl.DT2)[['Bhalf']]*4^seq(-0.4,0.4,len=6))
+    mdl.DT3=nls2::nls2(FXNdt,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    # step 1d
+    try(mdl.DT4 <- nls2::nls2(FXNdt,data,start=list('k.n1'=coefficients(mdl.DT3)[['k.n1']],'k.theta'=coefficients(mdl.DT3)[['k.theta']],'N'=coefficients(mdl.DT3)[['N']],'Bhalf'=coefficients(mdl.DT3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0,0.1,1),upper=c(1,1e4,10,2.5e3),algorithm = 'port'))
+    if (exists('mdl.DT4')==T){
+      DT.mdl = mdl.DT4
+    } else {
+      DT.mdl = mdl.DT3
+    }
+    # step 2a
+    if(match.optimizers==T){
+      data=list('x'=data$x,'y'=data$y,'N'=coefficients(DT.mdl)[['N']],'Bhalf'=coefficients(DT.mdl)[['Bhalf']])
+      start.grid=expand.grid(k.n1 = 10^c(-5:0))
+      mdl.NULL1=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    if(match.optimizers==F){
+      start.grid=expand.grid(k.n1 = 10^c(-5:0),
+                             N = 2^c(-3:3),
+                             Bhalf = 1e4*4^c(-2:-5))
+      mdl.NULL1=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    # step 2b
+    if(match.optimizers==T){
+      start.grid=expand.grid(k.n1 = coefficients(mdl.NULL1)[['k.n1']]*10^seq(-1,1,len=6))
+      mdl.NULL2=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    if(match.optimizers==F){
+      start.grid=expand.grid(k.n1 = coefficients(mdl.NULL1)[['k.n1']]*10^seq(-1,1,len=6),
+                             N = coefficients(mdl.NULL1)[['N']]*2^seq(-1,1,len=6),
+                             Bhalf = coefficients(mdl.NULL1)[['Bhalf']]*4^seq(-1,1,len=6))
+      mdl.NULL2=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    # step 2c
+    if(match.optimizers==T){
+      start.grid=expand.grid(k.n1 = coefficients(mdl.NULL2)[['k.n1']]*10^seq(-0.4,0.4,len=6))
+      mdl.NULL3=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    if(match.optimizers==F){
+      start.grid=expand.grid(k.n1 = coefficients(mdl.NULL2)[['k.n1']]*10^seq(-0.4,0.4,len=6),
+                             N = coefficients(mdl.NULL2)[['N']]*2^seq(-0.4,0.4,len=6),
+                             Bhalf = coefficients(mdl.NULL2)[['Bhalf']]*4^seq(-0.4,0.4,len=6))
+      mdl.NULL3=nls2::nls2(FXNnull,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
+    }
+    # step 2d
+    if(match.optimizers==T){
+      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0),upper=c(1),algorithm = 'port'))
+    }
+    if(match.optimizers==F){
+      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']],'N'=coefficients(mdl.NULL3)[['N']],'Bhalf'=coefficients(mdl.NULL3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0.1,1),upper=c(1,10,2.5e3),algorithm = 'port'))
+    }
+    if (exists('mdl.DT4')==T){
+      NULL.mdl = mdl.NULL4
+    } else {
+      NULL.mdl = mdl.NULL3
+    }
+    # step 3
+    MDLs=list('NULL'=NULL.mdl,'DT'=DT.mdl)
+    return(MDLs)
+  }
+
+  IC50.fit <- function(data){
+    FXN <- y ~ 1 - (1-low)*(D^h)/(D^h + IC50^h)
+    start.grid=expand.grid(IC50 = 1e4*2^c(0:-11),
+                           h = 2^seq(-2,2,len = 10),
+                           low = seq(-1,1,0.1))
+    try(mdl <- nls2::nls2(FXN,data,start=data.frame('IC50'=start.grid$IC50,'h'=start.grid$h,'low'=start.grid$low),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    if (exists('mdl')==T){
+      return(mdl)
+    } else {
+      return(NULL)
+    }
+  }
 
   ##### BEGIN SCRIPT
 
@@ -929,6 +1065,7 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
   }
 
   if (experiment.type=='COMP' & data.size=='full'){
+    if (exponentials==1){
     # Plot dissociation curves
     par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
     cmp.models=list(NULL)
@@ -1019,121 +1156,365 @@ FPalyze <- function(experiment.type,path.to.file='./',file.name=c('par.txt','per
       par(fig=c(0.5,1,0.5,0.7),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
       plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
       arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+      if (fit.DT.mdls==T){
+        IC50.data=list('y'=c(cmp.models.coefficients.Mn),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn)))
+        IC50.mdl=IC50.fit(IC50.data)
+        lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
+        if (show.constants==T){
+          cc.temp = signif(coefficients(IC50.mdl)[['IC50']],2)
+          text(max(variant.concentrations)*1e-3*0.6,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=2)
+          cc.temp = signif(coefficients(IC50.mdl)[['h']],2)
+          text(max(variant.concentrations)*1e-3*0.6,0.6,labels = substitute(paste('h = ',cc.temp,sep = "")),adj = c(0,0.5),cex=2)
+        }
+      }
+
       par(fig=c(0,1,0,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
       plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]*''^obs),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']*''^obs*' x10'^-3*' (s'^-1*')'),type='p',cex.main=3,cex.lab=2.5,cex.axis=2.5)
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE)*1e3 - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off,na.rm = TRUE)*1e3 + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-
-      # Generate competition models
-      fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
-      if (estimate.initials==T){
-        start.N=1
-        start.ktheta=(rowMeans(k.off-kt,na.rm = TRUE)[1]-rowMeans(k.off-kt,na.rm = TRUE)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
-        start.kn1=rowMeans(k.off-kt,na.rm = TRUE)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
-        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt,na.rm = TRUE)))]
-      }
-      fun.model.opt2=nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)+k.theta*(x*1e-9),data = fun.data,start = list('k.n1'=start.kn1,'Bhalf'=start.Bhalf,'N'=start.N,'k.theta'=start.ktheta),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE))
-      if (match.optimizers==T & exists('fun.model.opt2')==T){
-        fun.data<-list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
-        try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
-      }
-      if (match.optimizers==F){
-        fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
-        try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
-      }
-      if (exists('fun.model.opt')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=3)
+      if (fit.DT.mdls==T){
+        # Generate competition models
+        DTmod.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
+        DTmod.both=DT.fit(DTmod.data,match.optimizers)
+        DTmod.opt=DTmod.both[['NULL']]
+        DTmod.opt2=DTmod.both[['DT']]
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=3)
+        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3)
+        legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 2)
         if (show.constants==T){
-          cc.temp = signif((summary(fun.model.opt)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='green')
+          cc.temp = signif((summary(DTmod.opt)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=3,col='green')
+          cc.temp = signif((summary(DTmod.opt2)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=3,col='purple')
+          cc.temp = signif((summary(DTmod.opt2)[['coefficients']][4,1]),2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=3,col='purple')
+        }
+
+        # Report and compare models
+        if (exists('IC50.mdl')==T){
+          print(paste('Equilibrium Competition Summary:',sep = ''),quote = F); print(summary(IC50.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (exists('DTmod.opt')==T){
+          print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(DTmod.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (exists('DTmod.opt2')==T){
+          print(paste('Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(DTmod.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        }
+        if (exists('DTmod.opt2')==T & exists('DTmod.opt')==T){
+          model.comparison=BIC(DTmod.opt,DTmod.opt2)
+          print(paste("Models' BIC Statistics:",sep = ''),quote = F); print(model.comparison,quote = F)
+          delta.BIC=BIC(DTmod.opt2)-BIC(DTmod.opt)
+          print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F)
+          print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (delta.BIC<=-10){
+            print('These data favor the DIRECT TRANSFER model!',quote = F)
+            print(paste0('k.n1 = ',signif(summary(DTmod.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta = ',signif(summary(DTmod.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(DTmod.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+            if (show.constants==T){
+              text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.05+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'purple',adj=c(1.5,0.5))
+            }
+          }
+          if (delta.BIC>=5){
+            print('These data favor the CLASSIC model!',quote = F)
+            print(paste0('k.n1 = ',signif(summary(DTmod.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+            if (show.constants==T){
+              text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.15+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'green',adj=c(1.5,0.5))
+            }
+          }
+          if (delta.BIC>-10 & delta.BIC<5){
+            print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+            print(paste0('k.n1 = ',signif(summary(DTmod.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print('OR',quote=F)
+            print(paste0('k.n1 = ',signif(summary(DTmod.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta = ',signif(summary(DTmod.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(DTmod.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+            if (show.constants==T){
+              text(max(variant.concentrations)*1e-3*0.5,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
+            }
+          }
+        }
+
+        # Outlier Identification
+        if (outliers[1]=='none' & default.mP.values==F){
+          temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(DTmod.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+          if (length(outlyers)>=1){
+            print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (length(outlyers)==0){
+            print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+        }
+        if (outliers[1]=='none' & default.mP.values==T){
+          temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(DTmod.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+          if (length(outlyers)>=1){
+            print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (length(outlyers)==0){
+            print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+        }
+        if (outliers[1]!='none' & default.mP.values==F){
+          temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(DTmod.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+          if (length(outlyers)>=1){
+            print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (length(outlyers)==0){
+            print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+        }
+        if (outliers[1]!='none' & default.mP.values==T){
+          temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(DTmod.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[-((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
+          if (length(outlyers)>=1){
+            print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (length(outlyers)==0){
+            print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
         }
       }
-      if (exists('fun.model.opt2')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3)
-        #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        if (show.constants==T){
-          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
-          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][4,1]),2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
+    }
+    }
+    if (exponentials==2){
+      # Plot dissociation curves
+      par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
+      cmp.models=list(NULL)
+      cmp.models.coefficients.lambda.1=matrix(NA,ncol=4,nrow=length(variant.concentrations))
+      cmp.models.coefficients.lambda.2=cmp.models.coefficients.lambda.1
+      cmp.models.coefficients.Mn.1=cmp.models.coefficients.lambda.1
+      cmp.models.coefficients.Mn.2=cmp.models.coefficients.lambda.1
+      for (i in 1:12){
+        if (scale.data==T){
+          plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        }
+        if (scale.data==F){
+          plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        }
+        if (i==1){
+          title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
+        }
+        if (regress.data==T){
+          for (q in 1:4){
+            cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t)
+            try(cmp.models[[paste(i,q,sep = '_')]]<-DED.fit(cmp.models.data))
+            if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
+              try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+              if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
+                cmp.models.coefficients.lambda.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]; cmp.models.coefficients.lambda.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
+                warning(paste0('Reaction ',i,'-',q,' does not fit a double exponential decay -- it was coerced to a single exponential.'))
+              }
+              if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
+                cmp.models.coefficients.lambda.1[i,q]=0; cmp.models.coefficients.Mn.1[i,q]=1; cmp.models.coefficients.lambda.1[i,q]=0; cmp.models.coefficients.Mn.2[i,q]=1; cmp.models.coefficients.lambda.2[i,q]=0
+                warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
+              }
+            } else {
+              if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
+                cmp.models.coefficients.lambda.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[['lambda.1']]
+                cmp.models.coefficients.lambda.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[['lambda.1']]*coefficients(cmp.models[[paste(i,q,sep = '_')]])[['beta']]
+                cmp.models.coefficients.Mn.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[['Mn1']]
+                cmp.models.coefficients.Mn.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[['Mn2']]
+              }
+            }
+          }
+          cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=4))
+          try(cmp.models[[paste(i,'all',sep = '_')]]<-DED.fit(cmp.models.data))
+          if (is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+            try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+          }
+          if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
+            lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),col='red',lwd=3)
+          }
+          if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
+            lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
+          }
         }
       }
 
-      # Report and compare models
-      if (exists('fun.model.opt')==T){
-        print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (exists('fun.model.opt2')==T){
-        print(paste('Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (exists('fun.model.opt2')==T & exists('fun.model.opt')==T){
-        model.comparison=BIC(fun.model.opt,fun.model.opt2)
-        print(paste("Models' BIC Statistics:",sep = ''),quote = F); print(model.comparison,quote = F)
-        delta.BIC=BIC(fun.model.opt2)-BIC(fun.model.opt)
-        print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-        if (delta.BIC<=-10){
-          print('These data favor the DIRECT TRANSFER model!',quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.05+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'purple',adj=c(1.5,0.5))
+      # Plot comparative dissociation curves
+      if (regress.data==T){
+        par(fig=c(0,0.5,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
+        if (scale.data==T){
+          plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        }
+        if (scale.data==F){
+          plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
+        }
+        for (i in 12:1){
+          if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
+            lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3,col=grey.colors(12)[i])
+          }
+          if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
+            lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
+          }
+          if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+            lines(t/60,rep(1,times=length(t)),lwd=3,col=grey.colors(12)[i])
+          }
+          if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
+            lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
           }
         }
-        if (delta.BIC>=5){
-          print('These data favor the CLASSIC model!',quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.15+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'green',adj=c(1.5,0.5))
-          }
+        if (scale.data==T){
+          fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+          text((0.75-0.35/2)*incubation.time,1,labels = paste0('[Decoy] (µM):'),adj = c(0.25,0.5),cex=2)
+          text((0.75-0.35/2)*incubation.time,0.9,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+          text((0.75+0.35/2)*incubation.time,0.9,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
         }
-        if (delta.BIC>-10 & delta.BIC<5){
-          print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print('OR',quote=F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.5,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
-          }
+        if (scale.data==F){
+          fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
+          text((0.75-0.35/2)*incubation.time,1*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[Decoy] (µM):'),adj = c(0.25,0.5),cex=2)
+          text((0.75-0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
+          text((0.75+0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
         }
-      }
+        title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = -5,outer = TRUE,cex.main = 4.5)
 
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        # Plot decoy-dependence curves
+        if (manual.fEP.adjust==T){
+          cmp.models.coefficients.Mn.1=(cmp.models.coefficients.Mn.1*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
+          cmp.models.coefficients.Mn.2=(cmp.models.coefficients.Mn.2*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
         }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        cmp.models.coefficients.S=(1 - cmp.models.coefficients.Mn.1)/(2 - cmp.models.coefficients.Mn.2 - cmp.models.coefficients.Mn.1)
+        cmp.models.coefficients.MnAVG=(cmp.models.coefficients.Mn.1+cmp.models.coefficients.Mn.2)/2
+        cmp.models.coefficients.Mn1x=(2*cmp.models.coefficients.Mn.1 + 2*cmp.models.coefficients.Mn.2)/(cmp.models.coefficients.S - 3)
+        cmp.models.coefficients.Mn2x=(-3*cmp.models.coefficients.Mn.1 - 3*cmp.models.coefficients.Mn.2)/(2*cmp.models.coefficients.S - 6)
+        k.off.1=cmp.models.coefficients.lambda.1*(1-cmp.models.coefficients.Mn.1); if (coerce.offrates==T){k.off.1[k.off.1<=0]=0}
+        k.off.2=cmp.models.coefficients.lambda.2*(1-cmp.models.coefficients.Mn.2); if (coerce.offrates==T){k.off.2[k.off.2<=0]=0}
+        kt.1=min(na.omit(k.off.1))
+        kt.2=min(na.omit(k.off.2))
+        par(fig=c(0.5,1,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
+        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.S,na.rm = TRUE),main = 'Decoy vs Fast Events',xlab = paste0('[Decoy] (µM)'),ylab = expression('Proportion of k'[off]*''^'fast'), ylim = 0:1,type='p',cex.main=2,cex.lab=2,cex.axis=2)
+        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.S,na.rm = TRUE) - apply(cmp.models.coefficients.S,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.S,na.rm = TRUE) + apply(cmp.models.coefficients.S,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        par(fig=c(0,0.35,0.25,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE),main = expression('[EP]'['eq1']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.1,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.1,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        if (fit.DT.mdls==T){
+          IC50a.data=list('y'=c(cmp.models.coefficients.Mn.1),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.1)))
+          IC50a.mdl=IC50.fit(IC50a.data)
+          lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50a.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
+          if (show.constants==T){
+            cc.temp = signif(coefficients(IC50a.mdl)[['IC50']],2)
+            text(max(variant.concentrations)*1e-3*0.4,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=1)
+            cc.temp = signif(coefficients(IC50a.mdl)[['h']],2)
+            text(max(variant.concentrations)*1e-3*0.4,0.6,labels = substitute(paste('h = ',cc.temp,sep = "")),adj = c(0,0.5),cex=1)
+          }
         }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        par(fig=c(0,0.35,0,0.25),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE),main = expression('[EP]'['eq2']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.2,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.2,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        if (fit.DT.mdls==T){
+          IC50b.data=list('y'=c(cmp.models.coefficients.Mn.2),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.2)))
+          IC50b.mdl=IC50.fit(IC50b.data)
+          lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50b.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
+          if (show.constants==T){
+            cc.temp = signif(coefficients(IC50b.mdl)[['IC50']],2)
+            text(max(variant.concentrations)*1e-3*0.4,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=1)
+            cc.temp = signif(coefficients(IC50b.mdl)[['h']],2)
+            text(max(variant.concentrations)*1e-3*0.4,0.6,labels = substitute(paste('h = ',cc.temp,sep = "")),adj = c(0,0.5),cex=1)
+          }
         }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        par(fig=c(0.35,1,0.25,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+        plot(variant.concentrations*1e-3,rowMeans(k.off.1,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]*''^obs*''[fast]),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']*''^obs*''[fast]*' x10'^-3*' (s'^-1*')'),type='p',ylim=c(min(rowMeans(k.off.1,na.rm = TRUE)*1e3,na.rm = TRUE),1.5*as.numeric(rev(rowMeans(k.off.1,na.rm = TRUE)[order(rowMeans(k.off.1,na.rm = TRUE))])[2])*1e3),cex.main=3,cex.lab=2.5,cex.axis=2.5)
+        arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.1,na.rm = TRUE)*1e3 - apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.1,na.rm = TRUE)*1e3 + apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        if (fit.DT.mdls==T){
+          # Generate competition models
+          DTmod1.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off.1-kt.1))==F],'y'=na.omit(c(k.off.1-kt.1)))
+          DTmod1.both=DT.fit(DTmod1.data,match.optimizers)
+          DTmod1.opt=DTmod1.both[['NULL']]
+          DTmod1.opt2=DTmod1.both[['DT']]
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod1.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.1*1e3,col='green',lwd=3)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod1.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.1*1e3,col='purple',lwd=3)
+          legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1)
         }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        par(fig=c(0.35,1,0,0.25),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
+        plot(variant.concentrations*1e-3,rowMeans(k.off.2,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]*''^obs*''[slow]),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']*''^obs*''[slow]*' x10'^-3*' (s'^-1*')'),type='p',ylim=c(min(rowMeans(k.off.2,na.rm = TRUE)*1e3,na.rm = TRUE),1.5*as.numeric(rev(rowMeans(k.off.2,na.rm = TRUE)[order(rowMeans(k.off.2,na.rm = TRUE))])[2])*1e3),cex.main=3,cex.lab=2.5,cex.axis=2.5)
+        arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.2,na.rm = TRUE)*1e3 - apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.2,na.rm = TRUE)*1e3 + apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        if (fit.DT.mdls==T){
+          # Generate competition models
+          DTmod2.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off.2-kt.2))==F],'y'=na.omit(c(k.off.2-kt.2)))
+          DTmod2.both=DT.fit(DTmod2.data,match.optimizers)
+          DTmod2.opt=DTmod2.both[['NULL']]
+          DTmod2.opt2=DTmod2.both[['DT']]
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod2.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.2*1e3,col='green',lwd=3)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod2.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.2*1e3,col='purple',lwd=3)
+          legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1)
         }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+        if (fit.DT.mdls==T){
+          par(mfrow=c(2,1),mar=c(5,6,3,1),oma = c(0,0,0,0))
+          plot(variant.concentrations*1e-3,rowMeans(k.off.1,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]*''^obs*''[fast]),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']*''^obs*''[fast]*' x10'^-3*' (s'^-1*')'),type='p',ylim=c(min(rowMeans(k.off.1,na.rm = TRUE)*1e3,na.rm = TRUE),1.5*as.numeric(rev(rowMeans(k.off.1,na.rm = TRUE)[order(rowMeans(k.off.1,na.rm = TRUE))])[2])*1e3),cex.main=3,cex.lab=2.5,cex.axis=2.5)
+          arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.1,na.rm = TRUE)*1e3 - apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.1,na.rm = TRUE)*1e3 + apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod1.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.1*1e3,col='green',lwd=3)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod1.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.1*1e3,col='purple',lwd=3)
+          legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.6)
+          if (show.constants==T){
+            cc.temp = signif((summary(DTmod1.opt)[['coefficients']][1,1])*1e3,2); text(0,(diff(range(rowMeans(k.off.1,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off.1,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='green')
+            cc.temp = signif((summary(DTmod1.opt2)[['coefficients']][1,1])*1e3,2); text(0,(diff(range(rowMeans(k.off.1,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off.1,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='purple')
+            cc.temp = signif((summary(DTmod1.opt2)[['coefficients']][4,1]),2); text(0,(diff(range(rowMeans(k.off.1,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off.1,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='purple')
+          }
+          plot(variant.concentrations*1e-3,rowMeans(k.off.2,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]*''^obs*''[slow]),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']*''^obs*''[slow]*' x10'^-3*' (s'^-1*')'),type='p',ylim=c(min(rowMeans(k.off.2,na.rm = TRUE)*1e3,na.rm = TRUE),1.5*as.numeric(rev(rowMeans(k.off.2,na.rm = TRUE)[order(rowMeans(k.off.2,na.rm = TRUE))])[2])*1e3),cex.main=3,cex.lab=2.5,cex.axis=2.5)
+          arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.2,na.rm = TRUE)*1e3 - apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.2,na.rm = TRUE)*1e3 + apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod2.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.2*1e3,col='green',lwd=3)
+          lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(DTmod2.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt.2*1e3,col='purple',lwd=3)
+          legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 1.6)
+          if (show.constants==T){
+            cc.temp = signif((summary(DTmod2.opt)[['coefficients']][1,1])*1e3,2); text(0,(diff(range(rowMeans(k.off.2,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off.2,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='green')
+            cc.temp = signif((summary(DTmod2.opt2)[['coefficients']][1,1])*1e3,2); text(0,(diff(range(rowMeans(k.off.2,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off.2,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='purple')
+            cc.temp = signif((summary(DTmod2.opt2)[['coefficients']][4,1]),2); text(0,(diff(range(rowMeans(k.off.2,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off.2,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=1,col='purple')
+          }
         }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[-((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+
+        if (fit.DT.mdls==T){
+          # Report and compare models
+          print(paste('Equilibrium Competition 1 Summary:',sep = ''),quote = F); print(summary(IC50a.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          print(paste('Equilibrium Competition 2 Summary:',sep = ''),quote = F); print(summary(IC50b.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          print(paste('(FAST) Classic Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          print(paste('(FAST) Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          fast.comparison=BIC(DTmod1.opt,DTmod1.opt2)
+          print(paste("(FAST) Models' BIC Statistics:",sep = ''),quote = F); print(fast.comparison,quote = F)
+          fast.BIC=BIC(DTmod1.opt2)-BIC(DTmod1.opt)
+          print(paste('(FAST) ΔBIC = ',fast.BIC,sep = ''),quote = F)
+          print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (fast.BIC<=-10){
+            print('These data favor the DIRECT TRANSFER (FAST) model!',quote = F)
+            print(paste0('k.n1 (FAST) = ',signif(summary(DTmod1.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod1.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta (FAST) = ',signif(summary(DTmod1.opt2)[['coefficients']][2,1],2),' ± ',signif(summary(DTmod1.opt2)[['coefficients']][2,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (fast.BIC>=5){
+            print('These data favor the CLASSIC (FAST) model!',quote = F)
+            print(paste0('k.n1 (FAST) = ',signif(summary(DTmod1.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod1.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (fast.BIC>-10 & fast.BIC<5){
+            print('EITHER (FAST) model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+            print(paste0('k.n1 (FAST) = ',signif(summary(DTmod1.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod1.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print('OR',quote=F)
+            print(paste0('k.n1 (FAST) = ',signif(summary(DTmod1.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod1.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta (FAST) = ',signif(summary(DTmod1.opt2)[['coefficients']][2,1],2),' ± ',signif(summary(DTmod1.opt2)[['coefficients']][2,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          #
+          print(paste('(SLOW) Classic Model Summary:',sep = ''),quote = F); print(summary(DTmod2.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          print(paste('(SLOW) Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(DTmod2.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          slow.comparison=BIC(DTmod2.opt,DTmod2.opt2)
+          print(paste("(SLOW) Models' BIC Statistics:",sep = ''),quote = F); print(slow.comparison,quote = F)
+          slow.BIC=BIC(DTmod2.opt2)-BIC(DTmod2.opt)
+          print(paste('(SLOW) ΔBIC = ',slow.BIC,sep = ''),quote = F)
+          print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (slow.BIC<=-10){
+            print('These data favor the DIRECT TRANSFER (SLOW) model!',quote = F)
+            print(paste0('k.n1 (SLOW) = ',signif(summary(DTmod2.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod2.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta (SLOW) = ',signif(summary(DTmod2.opt2)[['coefficients']][2,1],2),' ± ',signif(summary(DTmod2.opt2)[['coefficients']][2,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (slow.BIC>=5){
+            print('These data favor the CLASSIC (SLOW) model!',quote = F)
+            print(paste0('k.n1 (SLOW) = ',signif(summary(DTmod2.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod2.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (slow.BIC>-10 & slow.BIC<5){
+            print('EITHER (SLOW) model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+            print(paste0('k.n1 (SLOW) = ',signif(summary(DTmod2.opt)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod2.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print('OR',quote=F)
+            print(paste0('k.n1 (SLOW) = ',signif(summary(DTmod2.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(DTmod2.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
+            print(paste0('k.theta (SLOW) = ',signif(summary(DTmod2.opt2)[['coefficients']][2,1],2),' ± ',signif(summary(DTmod2.opt2)[['coefficients']][2,2],2),' 1/M/s'),quote=F)
+            print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
         }
       }
     }
