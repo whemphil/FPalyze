@@ -77,20 +77,14 @@ Additional Parameters:
 \item{default.mP.values}{are you using pre-generated mP values, T/F; DEFAULT -- F}
 \item{background.subtraction}{should background subtraction be applied, T/F; DEFAULT -- T}
 \item{G.factor}{value that the G-factor should be set to, domain=(x ε R | 0 < x ≤ Inf); DEFAULT -- 1}
-\item{estimate.initials}{should initial regression values be estimated from data, T/F; DEFAULT -- T}
 \item{reverse.timepoints}{should equilibrium points be sampled from the beginning instead, T/F; DEFAULT -- F}
-\item{regression.approach}{what regression method should be used for equilibrium binding curve, std/hill/both/none; DEFAULT -- 'both'}
-\item{estimated.kd}{estimated Kd for regression, nM; DEFAULT -- NULL}
 \item{regress.data}{should the raw data be fit with regression and further modeled, T/F; DEFAULT -- T}
 \item{coerce.offrates}{should negative off-rates be coerced to zero, T/F; DEFAULT -- T}
 \item{match.optimizers}{should the optimization parameter values for null model be constrained to those solved for the displacement model, T/F; DEFAULT -- T}
 \item{manual.fEP.adjust}{should the baseline FP value for fraction of initial EP calculations be explicitly provided, T/F; DEFAULT -- F}
 \item{FP.baseline}{what is the baseline FP value associated with no EP formation, mP; DEFAULT -- NULL}
 \item{legend.location}{location of legend for null/displacement models graph; DEFAULT -- 'bottomright'}
-\item{total.P}{total concentration of prey molecule in reaction, nM; DEFAULT -- 5 (experiment.type=='Kd' & regression.approach=='quad') or 250 (experiment.type=='STOICH')}
-\item{estimated.S}{starting estimate of the stoichiometric number of ligands bound per unit of protein; DEFAULT -- NULL}
-\item{estimated.Mn}{starting estimate of minimum polarization signal in a binding curve, mP; DEFAULT -- NULL}
-\item{estimated.Mx}{starting estimate of maximum polarization signal in a binding curve, mP; DEFAULT -- NULL}
+\item{total.P}{total concentration of prey molecule in reaction, nM; DEFAULT -- NULL (only specify if experiment.type=='Kd' with quadratic regression or experiment.type=='STOICH')}
 \item{show.constants}{should determined rate constant values and statistics be added to plots, T/F; DEFAULT -- F}
 \item{use.anisotropy}{should anisotropy be calculated instead of polarization, T/F; DEFAULT -- T}
 \item{exponentials}{should a single or double exponential model be used for dissociation curves, 1-2; DEFAULT -- 1}

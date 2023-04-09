@@ -36,8 +36,6 @@ FPalyze <- function(experiment.type,
                     background.subtraction=F,
                     G.factor=1,
                     reverse.timepoints=F,
-                    regression.approach='both',
-                    estimated.kd=NULL,
                     regress.data=T,
                     coerce.offrates=T,
                     match.optimizers=T,
@@ -45,9 +43,6 @@ FPalyze <- function(experiment.type,
                     FP.baseline=NULL,
                     legend.location='bottomright',
                     total.P=NULL,
-                    estimated.S=NULL,
-                    estimated.Mn=NULL,
-                    estimated.Mx=NULL,
                     show.constants=F,
                     use.anisotropy=T,
                     exponentials=1,
@@ -180,6 +175,60 @@ FPalyze <- function(experiment.type,
     }
   }
 
+  BIND.fit <- function(data,total.P,experiment.type){
+    FXNstd <- FP~(E/(E+Kd))*(Mx-Mn)+Mn
+    FXNhill <- FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn
+    FXNquad <- FP~(Mx-Mn)*(((Pt+(E+Kd))-((Pt+(E+Kd))^2-4*Pt*E)^0.5)/(2*Pt))+Mn
+    FXNstoich <- FP~(Mx-Mn)*(((Pt+S*(E+Kd))-((Pt+S*(E+Kd))^2-4*Pt*S*E)^0.5)/(2*Pt))+Mn
+    # STD
+    if(experiment.type=='Kd'){
+      start.data=(list('FP'=data$FP,'E'=data$E))
+      start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
+                             Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                             Mn = min(data$FP,na.rm = T))
+      try(std.mdl <- nls2::nls2(FXNstd,start.data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    }
+    # HILL
+    if(experiment.type=='Kd'){
+      start.data=(list('FP'=data$FP,'E'=data$E))
+      start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
+                             n = 2^seq(-2,2,len = 10),
+                             Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                             Mn = min(data$FP,na.rm = T))
+      try(hill.mdl <- nls2::nls2(FXNhill,start.data,start=data.frame('Kd'=start.grid$Kd,'n'=start.grid$n,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    }
+    # QUAD
+    if(experiment.type=='Kd' & is.null(total.P)==F){
+      start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
+                             Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                             Mn = min(data$FP,na.rm = T))
+      try(quad.mdl <- nls2::nls2(FXNquad,data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    }
+    # STOICH
+    if(experiment.type=='STOICH' & is.null(total.P)==F){
+      start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
+                             S = 2^seq(-2,2,len = 10),
+                             Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                             Mn = min(data$FP,na.rm = T))
+      try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('Kd'=start.grid$Kd,'S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    }
+    # Reporting
+    if(exists('std.mdl')==F){
+      std.mdl=NULL
+    }
+    if(exists('hill.mdl')==F){
+      hill.mdl=NULL
+    }
+    if(exists('quad.mdl')==F){
+      quad.mdl=NULL
+    }
+    if(exists('stoich.mdl')==F){
+      stoich.mdl=NULL
+    }
+    BIND.mdls=list('STD'=std.mdl,'HILL'=hill.mdl,'QUAD'=quad.mdl,'STOICH'=stoich.mdl)
+    return(BIND.mdls)
+  }
+
   ##### BEGIN SCRIPT
 
   if (is.null(parameters.file)==F){
@@ -202,13 +251,6 @@ FPalyze <- function(experiment.type,
     }
     if (experiment.type=='COMP' & is.null(incubation.time)==T){
       incubation.time=120 # window of data collection, min
-    }
-    #
-    if (experiment.type=='Kd' & is.null(total.P)==T & regression.approach=='quad'){
-      total.P=5 # total concentration of prey molecule, nM
-    }
-    if (experiment.type=='STOICH' & is.null(total.P)==T){
-      total.P=250 # total concentration of prey molecule, nM
     }
 
   }
@@ -343,77 +385,25 @@ FPalyze <- function(experiment.type,
     # Calculate equilibrium values from scaled data
     if (reverse.timepoints==F & data.size!='single'){
       data.scaled.eq=apply(data.scaled[(length(t)-equilibrium.points+1):length(t),,],c(2,3),mean)
-      if (regression.approach=='none'){
-          data.eq=apply(data[(length(t)-equilibrium.points+1):length(t),,],c(2,3),mean)
-      }
     }
     if (reverse.timepoints==T & data.size!='single'){
       data.scaled.eq=apply(data.scaled[1:equilibrium.points,,],c(2,3),mean)
-      if (regression.approach=='none'){
-          data.eq=apply(data.scaled[1:equilibrium.points,,],c(2,3),mean)
-      }
     }
     if (reverse.timepoints==F & data.size=='single'){
       data.scaled.eq=apply(data.scaled[(length(t)-equilibrium.points+1):length(t),,],c(2),mean)
-      if (regression.approach=='none'){
-        data.eq=apply(data[(length(t)-equilibrium.points+1):length(t),,],c(2),mean)
-      }
     }
     if (reverse.timepoints==T & data.size=='single'){
       data.scaled.eq=apply(data.scaled[1:equilibrium.points,,],c(2),mean)
-      if (regression.approach=='none'){
-        data.eq=apply(data.scaled[1:equilibrium.points,,],c(2),mean)
-      }
     }
 
     # Fit equilibrium binding curve data
-    if (experiment.type=='STOICH' | regression.approach=='quad'){
-      if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
-      if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+    if (experiment.type=='STOICH' | experiment.type=='Kd'){
+      if (data.size=='full' | data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=dim(data)[3])[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
       if (data.size=='single'){model.data=list('E'=rep(variant.concentrations,times=1)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
-    } else {
-      if (data.size=='full'){model.data=list('E'=rep(variant.concentrations,times=4)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])}
-      if (data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=2)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])}
-      if (data.size=='single'){model.data=list('E'=rep(variant.concentrations,times=1)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE])}
     }
-    if (estimate.initials==T & data.size!='single'){
-      if (regression.approach!='quad' & experiment.type=='Kd'){
-        estimated.kd=variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]
-      }
-      if (regression.approach=='quad' | experiment.type=='STOICH'){
-        estimated.kd=abs(variant.concentrations[which.min(abs(rowMeans(data.scaled.eq)-(max(rowMeans(data.scaled.eq))-(max(rowMeans(data.scaled.eq))-min(rowMeans(data.scaled.eq)))/2)))]-0.5*total.P)
-        estimated.S=1
-        estimated.Mn=min(model.data[['FP']])
-        estimated.Mx=max(model.data[['FP']])
-      }
-    }
-    if (estimate.initials==T & data.size=='single'){
-      if (regression.approach!='quad' & experiment.type=='Kd'){
-        estimated.kd=variant.concentrations[which.min(abs(data.scaled.eq-(max(data.scaled.eq)-(max(data.scaled.eq)-min(data.scaled.eq))/2)))]
-      }
-      if (regression.approach=='quad' | experiment.type=='STOICH'){
-        estimated.kd=abs(variant.concentrations[which.min(abs(data.scaled.eq-(max(data.scaled.eq)-(max(data.scaled.eq)-min(data.scaled.eq))/2)))]-0.5*total.P)
-        estimated.S=1
-        estimated.Mn=min(model.data[['FP']])
-        estimated.Mx=max(model.data[['FP']])
-      }
-    }
-    if (regression.approach=='std'){
-      model=nls(FP~(E/(E+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']])),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
-    }
-    if (regression.approach=='hill'){
-      model=nls(FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']]),n=1),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
-    }
-    if (regression.approach=='both'){
-      model.std=nls(FP~(E/(E+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']])),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
-      model.hill=nls(FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn,start = list(Kd=estimated.kd,Mx=max(model.data[['FP']]),Mn=min(model.data[['FP']]),n=1),data = model.data,control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE))
-    }
-    if (regression.approach=='quad'){
-      model.quad=nls(FP~(Mx-Mn)*(((Pt+(E+Kd))-((Pt+(E+Kd))^2-4*Pt*E)^0.5)/(2*Pt))+Mn,model.data,list('Kd'=estimated.kd,'Mn'=min(model.data[['FP']]),'Mx'=max(model.data[['FP']])))
-    }
-    if (experiment.type=='STOICH'){
-      model.quadS=nls(FP~(Mx-Mn)*(((Pt+S*(E+Kd))-((Pt+S*(E+Kd))^2-4*Pt*S*E)^0.5)/(2*Pt))+Mn,model.data,list('Kd'=estimated.kd,'S'=estimated.S,'Mn'=estimated.Mn,'Mx'=estimated.Mx))
-    }
+
+    BIND.models=BIND.fit(model.data,total.P,experiment.type)
+
   }
 
   ### Report Results
@@ -428,660 +418,98 @@ FPalyze <- function(experiment.type,
     pdf(file = paste(path.to.file,plot.name,'.pdf',sep = ''))
   }
 
-  if (experiment.type=='Kd' & data.size=='full'){
+  if (experiment.type=='Kd'){
     # Plot association curves
     par(mfrow=c(4,3))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,if(data.size!='single'){times=dim(data)[3]}else{times=1}),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       if (scale.data==F){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
+        plot(rep(t/60,if(data.size!='single'){times=dim(data)[3]}else{times=1}),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
       }
       lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
     }
 
-    if (regression.approach=='none'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
-      }
-      lines(variant.concentrations,rowMeans(data.eq,na.rm = TRUE),col='blue',lty='dashed')
+    # Plot equilibrium binding curve
+    par(mfrow=c(2,1))
+    if (scale.data==T){
+      plot(rep(variant.concentrations,if(data.size!='single'){times=dim(data)[3]}else{times=1}),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
     }
-    if (regression.approach=='std'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
+    if (scale.data==F){
+      plot(rep(variant.concentrations,if(data.size!='single'){times=dim(data)[3]}else{times=1}),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
     }
-    if (regression.approach=='hill'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['STD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lwd=3))
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['HILL']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lwd=3))
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['QUAD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='green',lwd=3))
+    legend('bottomright',legend = c('Std.','Hill','Quad.'),fill = c('blue','red','green'),col = c('blue','red','green'),cex=1.5)
 
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
+    if (scale.data==T){
+      plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
     }
-    if (regression.approach=='both'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
+    if (scale.data==F){
+      plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
+    }
+    arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['STD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lwd=3))
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['HILL']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lwd=3))
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['QUAD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='green',lwd=3))
+    legend('topleft',legend = c('Std.','Hill','Quad.'),fill = c('blue','red','green'),col = c('blue','red','green'),cex=1.5)
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
+    # Summarize binding curve regression
+    print(summary(BIND.models[['STD']])); print(paste(rep('#',times=100),collapse = ''),quote = F)
+    print(summary(BIND.models[['HILL']])); print(paste(rep('#',times=100),collapse = ''),quote = F)
+    print(summary(BIND.models[['QUAD']])); print(paste(rep('#',times=100),collapse = ''),quote = F)
 
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Model comparison statistics
-      BIC=BIC(model.std,model.hill)
+    # Model comparison statistics
+    if(is.null(BIND.models[['STD']])==F & is.null(BIND.models[['HILL']])==F & is.null(BIND.models[['QUAD']])==F){
+      BIC=BIC(BIND.models[['STD']],BIND.models[['HILL']],BIND.models[['QUAD']])
       print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      delta.BIC=BIC(model.hill)-BIC(model.std)
+      delta.BIC=BIC(BIND.models[['HILL']])-BIC(BIND.models[['STD']])
       print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       if (delta.BIC<=-10){
         print('These data favor the HILL model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
+        print(paste0('Kd = ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,1],2),' ± ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,2],2),' nM'),quote=F)
+        print(paste0('n = ',signif(summary(BIND.models[['HILL']])[['coefficients']][2,1],2),' ± ',signif(summary(BIND.models[['HILL']])[['coefficients']][2,2],2)),quote=F)
+        print(paste0('B_0.5 ≈ ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,1]^(1/summary(BIND.models[['HILL']])[['coefficients']][2,1]),2),' nM'),quote=F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (delta.BIC>=5){
         print('These data favor the STANDARD model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
+        print(paste0('Kd = ',signif(summary(BIND.models[['STD']])[['coefficients']][1,1],2),' ± ',signif(summary(BIND.models[['STD']])[['coefficients']][1,2],2),' nM'),quote=F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
       }
       if (delta.BIC>-10 & delta.BIC<5){
         print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
+        print(paste0('Kd = ',signif(summary(BIND.models[['STD']])[['coefficients']][1,1],2),' ± ',signif(summary(BIND.models[['STD']])[['coefficients']][1,2],2),' nM'),quote=F)
         print('OR',quote=F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
+        print(paste0('Kd = ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,1],2),' ± ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,2],2),' nM'),quote=F)
+        print(paste0('n = ',signif(summary(BIND.models[['HILL']])[['coefficients']][2,1],2),' ± ',signif(summary(BIND.models[['HILL']])[['coefficients']][2,2],2)),quote=F)
+        print(paste0('B_0.5 ≈ ',signif(summary(BIND.models[['HILL']])[['coefficients']][1,1]^(1/summary(BIND.models[['HILL']])[['coefficients']][2,1]),2),' nM'),quote=F)
         print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[-((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-    if (regression.approach=='quad'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=4),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.quad)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[((colnames(raw.par)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))])[-((colnames(raw)[2:49])[c(seq(1,24,2),seq(2,24,2),seq(25,48,2),seq(26,48,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-
-  }
-  if (experiment.type=='Kd' & data.size=='half'){
-    # Plot association curves
-    par(mfrow=c(4,3))
-    for (i in 1:12){
-      if (scale.data==T){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
-      }
-      if (scale.data==F){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
-      }
-      lines(t/60,rowMeans(data.scaled[,i,],na.rm = TRUE),col='red',lwd=4)
-    }
-
-    if (regression.approach=='none'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
-      }
-      lines(variant.concentrations,rowMeans(data.eq,na.rm = TRUE),col='blue',lty='dashed')
-    }
-    if (regression.approach=='std'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-    }
-    if (regression.approach=='hill'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-    }
-    if (regression.approach=='both'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Model comparison statistics
-      BIC=BIC(model.std,model.hill)
-      print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      delta.BIC=BIC(model.hill)-BIC(model.std)
-      print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      if (delta.BIC<=-10){
-        print('These data favor the HILL model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (delta.BIC>=5){
-        print('These data favor the STANDARD model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (delta.BIC>-10 & delta.BIC<5){
-        print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
-        print('OR',quote=F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-    if (regression.approach=='quad'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.quad)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
       }
     }
 
   }
 
-  if (experiment.type=='Kd' & data.size=='single'){
-    # Plot association curves
-    par(mfrow=c(4,3))
-    for (i in 1:12){
-      if (scale.data==T){
-        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
-      }
-      if (scale.data==F){
-        plot(rep(t/60,times=1),c(data.scaled[,i,]),type = 'p',main = paste(enzyme,'-',prey.molecule,' Association Curve:  ',enzyme,' at ',variant.concentrations[i],' nM',sep = ''),xlab = 'Time (minutes)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex.main=0.8,cex=1,col='black')
-      }
-      lines(t/60,data.scaled[,i,],col='red',lwd=4)
-    }
-
-    if (regression.approach=='none'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'})
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Unmodeled Binding Data',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'})
-      }
-      lines(variant.concentrations,data.eq,col='blue',lty='dashed')
-    }
-    if (regression.approach=='std'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Standard Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-    }
-    if (regression.approach=='hill'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(1,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Hill Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(0,max(na.omit(c(data.scaled.eq)))))
-      }
-      lines(min(variant.concentrations):max(variant.concentrations),predict(model,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))))
-
-      # Summarize binding curve regression
-      print(summary(model)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-    }
-    if (regression.approach=='both'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-
-        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=1),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.std,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.hill,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-
-        plot(log10(variant.concentrations),data.scaled.eq,type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.std,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.hill,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lty='dashed')
-        legend('bottomright',legend = c('Standard Model','Hill Model'),fill = c('blue','red'),col = c('blue','red'))
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.std)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      print(summary(model.hill)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Model comparison statistics
-      BIC=BIC(model.std,model.hill)
-      print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      delta.BIC=BIC(model.hill)-BIC(model.std)
-      print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      if (delta.BIC<=-10){
-        print('These data favor the HILL model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (delta.BIC>=5){
-        print('These data favor the STANDARD model!',quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (delta.BIC>-10 & delta.BIC<5){
-        print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        print(paste0('Kd = ',signif(summary(model.std)[['coefficients']][1,1],2),' ± ',signif(summary(model.std)[['coefficients']][1,2],2),' nM'),quote=F)
-        print('OR',quote=F)
-        print(paste0('Kd = ',signif(summary(model.hill)[['coefficients']][1,1],2),' ± ',signif(summary(model.hill)[['coefficients']][1,2],2),' nM'),quote=F)
-        print(paste0('n = ',signif(summary(model.hill)[['coefficients']][4,1],2),' ± ',signif(summary(model.hill)[['coefficients']][4,2],2)),quote=F)
-        print(paste0('B_0.5 ≈ ',signif(summary(model.hill)[['coefficients']][1,1]^(1/summary(model.hill)[['coefficients']][4,1]),2),' nM'),quote=F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.hill[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-    if (regression.approach=='quad'){
-      # Plot equilibrium binding curve
-      par(mfrow=c(2,1))
-      if (scale.data==T){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-      if (scale.data==F){
-        plot(rep(variant.concentrations,times=2),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        lines(min(variant.concentrations):max(variant.concentrations),predict(model.quad,newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lty='dashed')
-
-        plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
-        arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-        lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(model.quad,newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lty='dashed')
-      }
-
-      # Summarize binding curve regression
-      print(summary(model.quad)); print(paste(rep('#',times=100),collapse = ''),quote = F)
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=data.scaled.eq; temp.1[is.na(temp.1)==FALSE]=(environment(model.quad[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-
-  }
-
-  if (experiment.type=='COMP' & data.size=='full'){
+  if (experiment.type=='COMP'){
     if (exponentials==1){
     # Plot dissociation curves
     par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
     cmp.models=list(NULL)
-    cmp.models.coefficients.lambda=matrix(NA,ncol=4,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=4,nrow=length(variant.concentrations))
+    cmp.models.coefficients.lambda=matrix(NA,ncol=dim(data)[3],nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,if(data.size!='single'){ncol=dim(data)[3]}else{ncol=1},nrow=length(variant.concentrations))
     for (i in 1:12){
       if (scale.data==T){
-        plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=dim(data)[3]),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (scale.data==F){
-        plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+        plot(rep(t/60,times=dim(data)[3]),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
       }
       if (i==1){
         title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
       }
       if (regress.data==T){
-        for (q in 1:4){
+        for (q in 1:dim(data)[3]){
           cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t); try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
           if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
             cmp.models.coefficients.lambda[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
@@ -1091,7 +519,7 @@ FPalyze <- function(experiment.type,
             warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
           }
         }
-        cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=4)); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+        cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=dim(data)[3])); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),col='red',lwd=3)
         }
@@ -1173,7 +601,7 @@ FPalyze <- function(experiment.type,
       arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE)*1e3 - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off,na.rm = TRUE)*1e3 + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
       if (fit.DT.mdls==T){
         # Generate competition models
-        DTmod.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
+        DTmod.data=list('x'=(rep(variant.concentrations,times=dim(data)[3]))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
         DTmod.both=DT.fit(DTmod.data,match.optimizers)
         DTmod.opt=DTmod.both[['NULL']]
         DTmod.opt2=DTmod.both[['DT']]
@@ -1276,16 +704,16 @@ FPalyze <- function(experiment.type,
       # Plot dissociation curves
       par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
       cmp.models=list(NULL)
-      cmp.models.coefficients.lambda.1=matrix(NA,ncol=4,nrow=length(variant.concentrations))
+      cmp.models.coefficients.lambda.1=matrix(NA,ncol=dim(data)[3],nrow=length(variant.concentrations))
       cmp.models.coefficients.lambda.2=cmp.models.coefficients.lambda.1
       cmp.models.coefficients.Mn.1=cmp.models.coefficients.lambda.1
       cmp.models.coefficients.Mn.2=cmp.models.coefficients.lambda.1
       for (i in 1:12){
         if (scale.data==T){
-          plot(rep(t/60,times=4),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+          plot(rep(t/60,times=dim(data)[3]),c(data.scaled[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
         }
         if (scale.data==F){
-          plot(rep(t/60,times=4),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
+          plot(rep(t/60,times=dim(data)[3]),c(data[,i,]),type = 'p',main = paste0('[Decoy] = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
         }
         if (i==1){
           title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
@@ -1313,7 +741,7 @@ FPalyze <- function(experiment.type,
               }
             }
           }
-          cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=4))
+          cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=dim(data)[3]))
           try(cmp.models[[paste(i,'all',sep = '_')]]<-DED.fit(cmp.models.data))
           if (is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
             try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
@@ -1413,7 +841,7 @@ FPalyze <- function(experiment.type,
         arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.1,na.rm = TRUE)*1e3 - apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.1,na.rm = TRUE)*1e3 + apply(k.off.1,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         if (fit.DT.mdls==T){
           # Generate competition models
-          DTmod1.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off.1-kt.1))==F],'y'=na.omit(c(k.off.1-kt.1)))
+          DTmod1.data=list('x'=(rep(variant.concentrations,times=dim(data)[3]))[is.na(c(k.off.1-kt.1))==F],'y'=na.omit(c(k.off.1-kt.1)))
           DTmod1.both=DT.fit(DTmod1.data,match.optimizers)
           DTmod1.opt=DTmod1.both[['NULL']]
           DTmod1.opt2=DTmod1.both[['DT']]
@@ -1426,7 +854,7 @@ FPalyze <- function(experiment.type,
         arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off.2,na.rm = TRUE)*1e3 - apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off.2,na.rm = TRUE)*1e3 + apply(k.off.2,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         if (fit.DT.mdls==T){
           # Generate competition models
-          DTmod2.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off.2-kt.2))==F],'y'=na.omit(c(k.off.2-kt.2)))
+          DTmod2.data=list('x'=(rep(variant.concentrations,times=dim(data)[3]))[is.na(c(k.off.2-kt.2))==F],'y'=na.omit(c(k.off.2-kt.2)))
           DTmod2.both=DT.fit(DTmod2.data,match.optimizers)
           DTmod2.opt=DTmod2.both[['NULL']]
           DTmod2.opt2=DTmod2.both[['DT']]
@@ -1519,225 +947,15 @@ FPalyze <- function(experiment.type,
       }
     }
   }
-  if (experiment.type=='COMP' & data.size=='half'){
-    # Plot dissociation curves
-    par(mfrow=c(4,3),mar=c(4.5,5,3,1),oma = c(0,0,5,0))
-    cmp.models=list(NULL)
-    cmp.models.coefficients.lambda=matrix(NA,ncol=2,nrow=length(variant.concentrations)); cmp.models.coefficients.Mn=matrix(NA,ncol=2,nrow=length(variant.concentrations))
-    for (i in 1:12){
-      if (scale.data==T){
-        plot(rep(t/60,times=2),c(data.scaled[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(min(na.omit(c(data.scaled))),max(na.omit(c(data.scaled)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
-      }
-      if (scale.data==F){
-        plot(rep(t/60,times=2),c(data[,i,]),type = 'p',main = paste0(decoy.molecule,' = ',signif(variant.concentrations[i]/1e3,2),' µM'),xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),cex=1,cex.main=2.5,cex.axis=2,cex.lab=2)
-      }
-      if (i==1){
-        title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = 1.5,outer = TRUE,cex.main = 4)
-      }
-      if (regress.data==T){
-        for (q in 1:2){
-          cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t); try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
-          if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
-            cmp.models.coefficients.lambda[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
-          }
-          if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
-            cmp.models.coefficients.lambda[i,q]=0; cmp.models.coefficients.Mn[i,q]=1
-            warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
-          }
-        }
-        cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=2)); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
-        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),col='red',lwd=3)
-        }
-        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
-        }
-        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t)),col='red',lwd=3)
-        }
-        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),col='red',lwd=3)
-        }
-      }
-    }
-
-    # Plot comparative dissociation curves
-    if (regress.data==T){
-      par(fig=c(0,0.5,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0))
-      if (scale.data==T){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Relative Anisotropy'}else{'Relative Polarization'},ylim = c(0,1),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
-      }
-      if (scale.data==F){
-        plot(NULL,NULL,main = 'Comparison of Competition Reactions',xlab = 'Time (min)',ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data))),max(na.omit(c(data)))),xlim = c(min(t)/60,max(t)/60),cex.main=2,cex.axis=2,cex.lab=2)
-      }
-      for (i in 12:1){
-        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),lwd=3,col=grey.colors(12)[i])
-        }
-        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
-          lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
-        }
-        if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t)),lwd=3,col=grey.colors(12)[i])
-        }
-        if (scale.data==F & is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-          lines(t/60,rep(1,times=length(t))*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))),lwd=3,col=grey.colors(12)[i])
-        }
-      }
-      if (scale.data==T){
-        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9,strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text((0.75-0.35/2)*incubation.time,1,labels = paste0('[Decoy] (µM):'),adj = c(0.25,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.9,labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.9,labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
-      }
-      if (scale.data==F){
-        fields::colorbar.plot(x = 0.75*incubation.time,y = 0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),strip = seq(0.3,0.9,0.6/11),col = grey.colors(12),strip.width = 0.05,strip.length = 0.35)
-        text((0.75-0.35/2)*incubation.time,1*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0('[Decoy] (µM):'),adj = c(0.25,0.5),cex=2)
-        text((0.75-0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(max(variant.concentrations)/1e3)),adj = c(1.5,0.5),cex=2)
-        text((0.75+0.35/2)*incubation.time,0.9*diff(range(na.omit(c(data))))+min(na.omit(c(data))),labels = paste0(round(min(variant.concentrations)/1e3)),adj = c(-1,0.5),cex=2)
-      }
-      title(paste0(enzyme,':  ',prey.molecule,' --> ',decoy.molecule),line = -5,outer = TRUE,cex.main = 4.5)
-
-      # Plot decoy-dependence curves
-      if (manual.fEP.adjust==T){
-        cmp.models.coefficients.Mn=(cmp.models.coefficients.Mn*(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))+mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),])))-FP.baseline)/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-FP.baseline)
-      }
-      k.off=cmp.models.coefficients.lambda*(1-cmp.models.coefficients.Mn); if (coerce.offrates==T){k.off[k.off<=0]=0}
-      kt=min(na.omit(k.off))
-      par(fig=c(0.5,1,0.7,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
-      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE),main = "Decoy-Dependence of λ",xlab = paste0('[Decoy] (µM)'),ylab = 'λ',type='p',cex.main=2,cex.lab=2,cex.axis=2)
-      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) - apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.lambda,na.rm = TRUE) + apply(cmp.models.coefficients.lambda,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0.5,1,0.5,0.7),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
-      plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE),main = 'Decoy-Dependence of [EP] Equilibrium',xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
-      arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) - apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn,na.rm = TRUE) + apply(cmp.models.coefficients.Mn,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-      par(fig=c(0,1,0,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
-      plot(variant.concentrations*1e-3,rowMeans(k.off,na.rm = TRUE)*1e3,main = expression('Decoy-Dependence of k'[off]^obs),xlab = paste0('[Decoy] (µM)'),ylab = expression('k'['off']^obs*' x10'^-3*' (s'^-1*')'),type='p',cex.main=3,cex.lab=2.5,cex.axis=2.5)
-      arrows(x0 = variant.concentrations*1e-3, x1 = variant.concentrations*1e-3, y0 = rowMeans(k.off,na.rm = TRUE)*1e3 - apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3, y1 = rowMeans(k.off,na.rm = TRUE)*1e3 + apply(k.off,MARGIN = c(1),FUN = sd,na.rm = TRUE)*1e3,code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-
-      # Generate competition models
-      fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
-      if (estimate.initials==T){
-        start.N=1
-        start.ktheta=(rowMeans(k.off-kt,na.rm = TRUE)[1]-rowMeans(k.off-kt,na.rm = TRUE)[2])/(variant.concentrations[1]*1e-9-variant.concentrations[2]*1e-9)
-        start.kn1=rowMeans(k.off-kt,na.rm = TRUE)[1]-(variant.concentrations[1]*1e-9)*start.ktheta
-        start.Bhalf=variant.concentrations[which.min(abs(start.kn1/2-rowMeans(k.off-kt,na.rm = TRUE)))]
-      }
-      fun.model.opt2=nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N)+k.theta*(x*1e-9),data = fun.data,start = list('k.n1'=start.kn1,'Bhalf'=start.Bhalf,'N'=start.N,'k.theta'=start.ktheta),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE))
-      if (match.optimizers==T & exists('fun.model.opt2')==T){
-        fun.data<-list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)),'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']])
-        try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
-      }
-      if (match.optimizers==F){
-        fun.data=list('x'=(rep(variant.concentrations,times=4))[is.na(c(k.off-kt))==F],'y'=na.omit(c(k.off-kt)))
-        try(fun.model.opt<-nls(y~k.n1*(x*1e-9)^N/((x*1e-9)^N+(Bhalf*1e-9)^N),data = fun.data,start = list('k.n1'=coefficients(fun.model.opt2)[['k.n1']],'Bhalf'=coefficients(fun.model.opt2)[['Bhalf']],'N'=coefficients(fun.model.opt2)[['N']]),control=list(minFactor=1e-10,maxiter=1e2,warnOnly=TRUE)))
-      }
-      if (exists('fun.model.opt')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='green',lwd=3)
-        if (show.constants==T){
-          cc.temp = signif((summary(fun.model.opt)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.5+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='green')
-        }
-      }
-      if (exists('fun.model.opt2')==T){
-        lines((min(variant.concentrations):max(variant.concentrations))*1e-3,predict(fun.model.opt2,newdata=list('x'=min(variant.concentrations):max(variant.concentrations)))*1e3+kt*1e3,col='purple',lwd=3)
-        #legend(legend.location,legend = c('Classic Competition Model','Displacement-Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        legend(legend.location,legend = c('Classic Competition Model','Direct Transfer Model'),col = c('green','purple'),fill = c('green','purple'),cex = 3)
-        if (show.constants==T){
-          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][1,1])*1e3,2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.4+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[-1],' = ',cc.temp,'x10'^-3,' s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
-          cc.temp = signif((summary(fun.model.opt2)[['coefficients']][4,1]),2); text(max(variant.concentrations)*1e-3*0.7,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.3+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels = substitute(paste('k'[theta],' = ',cc.temp,' M'^-1,'s'^-1,sep = "")),adj = c(0,0.5),cex=2.4,col='purple')
-        }
-      }
-
-      # Report and compare models
-      if (exists('fun.model.opt')==T){
-        print(paste('Classic Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (exists('fun.model.opt2')==T){
-        print(paste('Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(fun.model.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-      }
-      if (exists('fun.model.opt2')==T & exists('fun.model.opt')==T){
-        model.comparison=BIC(fun.model.opt,fun.model.opt2)
-        print(paste("Models' BIC Statistics:",sep = ''),quote = F); print(model.comparison,quote = F)
-        delta.BIC=BIC(fun.model.opt2)-BIC(fun.model.opt)
-        print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F)
-        print(paste(rep('#',times=100),collapse = ''),quote = F)
-        if (delta.BIC<=-10){
-          print('These data favor the DIRECT TRANSFER model!',quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.05+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'purple',adj=c(1.5,0.5))
-          }
-        }
-        if (delta.BIC>=5){
-          print('These data favor the CLASSIC model!',quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.65,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.15+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC Favors >',cex = 5,col = 'green',adj=c(1.5,0.5))
-          }
-        }
-        if (delta.BIC>-10 & delta.BIC<5){
-          print('EITHER model may have produced these data!',quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print('OR',quote=F)
-          print(paste0('k.n1 = ',signif(summary(fun.model.opt2)[['coefficients']][1,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][1,2],2),' 1/s'),quote=F)
-          print(paste0('k.theta = ',signif(summary(fun.model.opt2)[['coefficients']][4,1],2),' ± ',signif(summary(fun.model.opt2)[['coefficients']][4,2],2),' 1/M/s'),quote=F)
-          print(paste(rep('#',times=100),collapse = ''),quote = F)
-          if (show.constants==T){
-            text(max(variant.concentrations)*1e-3*0.5,(diff(range(rowMeans(k.off,na.rm = TRUE)*1e3))*0.1+min(rowMeans(k.off,na.rm = TRUE)*1e3)),labels='BIC',cex = 5,col = 'grey',adj=c(1.5,0.5))
-          }
-        }
-      }
-
-      # Outlier Identification
-      if (outliers[1]=='none' & default.mP.values==F){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]=='none' & default.mP.values==T){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=(((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==F){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))])[((colnames(raw.par)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-      if (outliers[1]!='none' & default.mP.values==T){
-        temp.1=k.off; temp.1[is.na(temp.1)==FALSE]=(environment(fun.model.opt2[["m"]][["resid"]])[["resid"]])[is.na(temp.1)==FALSE]; outlyers=((((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))])[-((colnames(raw)[2:25])[c(seq(1,24,2),seq(2,24,2))] %in% outliers)==FALSE])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Obs.Num])[(EnvStats::rosnerTest(c(temp.1),k=5)$all.stats)$Outlier]
-        if (length(outlyers)>=1){
-          print(paste0('Outliers:'),quote = F); print(paste0(outlyers),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-        if (length(outlyers)==0){
-          print(paste0('Outliers:'),quote = F); print(paste0('NONE'),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-        }
-      }
-    }
-  }
   if (experiment.type=='STOICH'){
-    nlm.Kd=coefficients(model.quadS)[1]
-    nlm.S=coefficients(model.quadS)[2]
-    nlm.Mn=coefficients(model.quadS)[3]
-    nlm.Mx=coefficients(model.quadS)[4]
-    show(summary(model.quadS))
+    nlm.Kd=coefficients(BIND.models[['STOICH']])$Kd
+    nlm.S=coefficients(BIND.models[['STOICH']])$S
+    nlm.Mn=coefficients(BIND.models[['STOICH']])$Mn
+    nlm.Mx=coefficients(BIND.models[['STOICH']])$Mx
+    show(summary(BIND.models[['STOICH']]))
 
     scale.dat.shi=(data.scaled.eq-nlm.Mn)/(nlm.Mx-nlm.Mn)
-    nlm.sims=data.frame('y'=predict(model.quadS,newdata = list('E'=min(variant.concentrations):max(variant.concentrations))),'x'=min(variant.concentrations):max(variant.concentrations))
+    nlm.sims=data.frame('y'=predict(BIND.models[['STOICH']],newdata = list('E'=min(variant.concentrations):max(variant.concentrations))),'x'=min(variant.concentrations):max(variant.concentrations))
     nlm.sims.scaled=nlm.sims; nlm.sims.scaled$y=(nlm.sims$y-nlm.Mn)/(nlm.Mx-nlm.Mn)
     nlm.int=total.P/nlm.S
 
