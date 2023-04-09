@@ -66,10 +66,10 @@ FPalyze(experiment.type,
 Additional Parameters:
 
 \item{variant.concentrations}{what are the concentrations of the variant molecule, nM; DEFAULT -- 2-fold dilutions from 10µM if experiment.type='COMP', and from 1µM if experiment.type='Kd'}
-\item{data.size}{is the experiment size single (1 replicate), half (2 replicates), or full (4 replicates), single/half/full; DEFAULT -- 'full'}
+\item{data.size}{is the experiment size 'single' (1 replicate), 'half' (2 replicates), or 'full' (4 replicates), single/half/full; DEFAULT -- NULL, which infers this from the data}
 \item{time.step}{frequency of data collection, s; DEFAULT -- 30}
 \item{t.zero}{estimated start-read delay time, min; DEFAULT -- 1}
-\item{incubation.time}{window of data collection, min; DEFAULT -- 30 (experiment.type='Kd') or 120 (experiment.type='COMP')}
+\item{incubation.time}{window of data collection, min; DEFAULT -- NULL, which infers this from the data and time.step setting}
 \item{coerce.timepoints}{should these time-points be forced if they don't match the raw data, T/F; DEFAULT -- F}
 \item{equilibrium.points}{average the last __ data points for equilibrium calculations; DEFAULT -- 10}
 \item{outliers}{what are the outlier samples in your experiment, none/A1:P24; DEFAULT -- 'none'}

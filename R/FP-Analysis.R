@@ -24,7 +24,7 @@ FPalyze <- function(experiment.type,
                     save.console=T,
                     save.id='Console',
                     variant.concentrations=NULL,
-                    data.size='full',
+                    data.size=NULL,
                     time.step=30,
                     t.zero=1,
                     incubation.time=NULL,
@@ -75,7 +75,7 @@ FPalyze <- function(experiment.type,
                            Mn2 = start.Mn2+seq(-0.01,0.01,len = 6))
     mdl.3=nls2::nls2(FXNb,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-6,warnOnly=TRUE))
     # step 4
-    try(mdl.4 <- nls2::nls2(FXNb,data,start=list('lambda.1'=coefficients(mdl.3)[['lambda.1']],'beta'=coefficients(mdl.3)[['beta']],'Mn1'=coefficients(mdl.3)[['Mn1']],'Mn2'=coefficients(mdl.3)[['Mn2']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    try(mdl.4 <- nls2::nls2(FXNb,data,start=list('lambda.1'=coefficients(mdl.3)[['lambda.1']],'beta'=coefficients(mdl.3)[['beta']],'Mn1'=coefficients(mdl.3)[['Mn1']],'Mn2'=coefficients(mdl.3)[['Mn2']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     if (exists('mdl.4')==T){
       return(mdl.4)
     } else {
@@ -105,7 +105,7 @@ FPalyze <- function(experiment.type,
                            Bhalf = coefficients(mdl.DT2)[['Bhalf']]*4^seq(-0.4,0.4,len=6))
     mdl.DT3=nls2::nls2(FXNdt,data,start = start.grid,algorithm = 'brute-force',control=list(minFactor=1e-10,warnOnly=TRUE))
     # step 1d
-    try(mdl.DT4 <- nls2::nls2(FXNdt,data,start=list('k.n1'=coefficients(mdl.DT3)[['k.n1']],'k.theta'=coefficients(mdl.DT3)[['k.theta']],'N'=coefficients(mdl.DT3)[['N']],'Bhalf'=coefficients(mdl.DT3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0,0.1,1),upper=c(1,1e4,10,2.5e3),algorithm = 'port'))
+    try(mdl.DT4 <- nls2::nls2(FXNdt,data,start=list('k.n1'=coefficients(mdl.DT3)[['k.n1']],'k.theta'=coefficients(mdl.DT3)[['k.theta']],'N'=coefficients(mdl.DT3)[['N']],'Bhalf'=coefficients(mdl.DT3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0,0.1,1),upper=c(1,1e4,10,2.5e3),algorithm = 'port'),silent = TRUE)
     if (exists('mdl.DT4')==T){
       DT.mdl = mdl.DT4
     } else {
@@ -147,10 +147,10 @@ FPalyze <- function(experiment.type,
     }
     # step 2d
     if(match.optimizers==T){
-      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0),upper=c(1),algorithm = 'port'))
+      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0),upper=c(1),algorithm = 'port'),silent = TRUE)
     }
     if(match.optimizers==F){
-      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']],'N'=coefficients(mdl.NULL3)[['N']],'Bhalf'=coefficients(mdl.NULL3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0.1,1),upper=c(1,10,2.5e3),algorithm = 'port'))
+      try(mdl.NULL4 <- nls2::nls2(FXNnull,data,start=list('k.n1'=coefficients(mdl.NULL3)[['k.n1']],'N'=coefficients(mdl.NULL3)[['N']],'Bhalf'=coefficients(mdl.NULL3)[['Bhalf']]),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE),lower=c(0,0.1,1),upper=c(1,10,2.5e3),algorithm = 'port'),silent = TRUE)
     }
     if (exists('mdl.DT4')==T){
       NULL.mdl = mdl.NULL4
@@ -167,7 +167,7 @@ FPalyze <- function(experiment.type,
     start.grid=expand.grid(IC50 = 1e4*2^c(0:-11),
                            h = 2^seq(-2,2,len = 10),
                            low = seq(-1,1,0.1))
-    try(mdl <- nls2::nls2(FXN,data,start=data.frame('IC50'=start.grid$IC50,'h'=start.grid$h,'low'=start.grid$low),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+    try(mdl <- nls2::nls2(FXN,data,start=data.frame('IC50'=start.grid$IC50,'h'=start.grid$h,'low'=start.grid$low),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     if (exists('mdl')==T){
       return(mdl)
     } else {
@@ -186,7 +186,7 @@ FPalyze <- function(experiment.type,
       start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
                              Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
                              Mn = min(data$FP,na.rm = T))
-      try(std.mdl <- nls2::nls2(FXNstd,start.data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+      try(std.mdl <- nls2::nls2(FXNstd,start.data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     }
     # HILL
     if(experiment.type=='Kd'){
@@ -195,14 +195,14 @@ FPalyze <- function(experiment.type,
                              n = 2^seq(-2,2,len = 10),
                              Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
                              Mn = min(data$FP,na.rm = T))
-      try(hill.mdl <- nls2::nls2(FXNhill,start.data,start=data.frame('Kd'=start.grid$Kd,'n'=start.grid$n,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+      try(hill.mdl <- nls2::nls2(FXNhill,start.data,start=data.frame('Kd'=start.grid$Kd,'n'=start.grid$n,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     }
     # QUAD
     if(experiment.type=='Kd' & is.null(total.P)==F){
       start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
                              Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
                              Mn = min(data$FP,na.rm = T))
-      try(quad.mdl <- nls2::nls2(FXNquad,data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+      try(quad.mdl <- nls2::nls2(FXNquad,data,start=data.frame('Kd'=start.grid$Kd,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     }
     # STOICH
     if(experiment.type=='STOICH' & is.null(total.P)==F){
@@ -210,20 +210,35 @@ FPalyze <- function(experiment.type,
                              S = 2^seq(-2,2,len = 10),
                              Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
                              Mn = min(data$FP,na.rm = T))
-      try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('Kd'=start.grid$Kd,'S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)))
+      try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('Kd'=start.grid$Kd,'S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
     }
     # Reporting
     if(exists('std.mdl')==F){
       std.mdl=NULL
+      if(experiment.type=='Kd'){
+        warning(paste0('Binding curve regression failed with Standard Model.'))
+      }
     }
     if(exists('hill.mdl')==F){
       hill.mdl=NULL
+      if(experiment.type=='Kd'){
+        warning(paste0('Binding curve regression failed with Hill Model.'))
+      }
     }
     if(exists('quad.mdl')==F){
       quad.mdl=NULL
+      if(experiment.type=='Kd' & is.null(total.P)==F){
+        warning(paste0('Binding curve regression failed with Quadratic Model.'))
+      }
     }
     if(exists('stoich.mdl')==F){
       stoich.mdl=NULL
+      if(experiment.type=='STOICH' & is.null(total.P)==F){
+        warning(paste0('Binding curve regression failed with Stoichiometry Model.'))
+      }
+      if(experiment.type=='STOICH' & is.null(total.P)==T){
+        warning(paste0('Regression with Stoichiometry Model not possible -- please provide ligand concentration (total.P).'))
+      }
     }
     BIND.mdls=list('STD'=std.mdl,'HILL'=hill.mdl,'QUAD'=quad.mdl,'STOICH'=stoich.mdl)
     return(BIND.mdls)
@@ -245,32 +260,13 @@ FPalyze <- function(experiment.type,
     if (experiment.type=='COMP' & is.null(variant.concentrations)==T){
       variant.concentrations=signif(c(1e4/2^c(0:10),0),3) # what are the concentrations of the variant molecule, nM
     }
-    #
-    if ((experiment.type=='Kd' | experiment.type=='STOICH') & is.null(incubation.time)==T){
-      incubation.time=30 # window of data collection, min
-    }
-    if (experiment.type=='COMP' & is.null(incubation.time)==T){
-      incubation.time=120 # window of data collection, min
-    }
 
   }
 
   ### Data Import and Analysis
 
-  # Generate time vector
-  t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
-
   # Import and clean raw data
   if (default.mP.values==T){
-    if (data.size=='full'){
-      data=array(0,dim = c(length(t),12,4))
-    }
-    if (data.size=='half'){
-      data=array(0,dim = c(length(t),12,2))
-    }
-    if (data.size=='single'){
-      data=array(0,dim = c(length(t),12,1))
-    }
     if (coerce.timepoints==F){
       raw=as.data.frame(read.csv(file = paste(path.to.file,file.name,sep = ''),header = TRUE,sep = '\t'))
     }
@@ -279,6 +275,34 @@ FPalyze <- function(experiment.type,
     }
     if (outliers[1]!='none'){
         raw[,colnames(raw) %in% outliers]=NA
+    }
+    if(is.null(data.size)==T){
+      if(ncol(raw)==13){
+        data.size='single'
+      }
+      if(ncol(raw)==25){
+        data.size='half'
+      }
+      if(ncol(raw)==49){
+        data.size='full'
+      }
+    }
+
+    # Generate time vector
+    if(is.null(incubation.time)==T){
+      incubation.time=time.step/60*(nrow(raw)-1)
+    }
+    t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
+
+    # Import and clean raw data, continued
+    if (data.size=='full'){
+      data=array(0,dim = c(length(t),12,4))
+    }
+    if (data.size=='half'){
+      data=array(0,dim = c(length(t),12,2))
+    }
+    if (data.size=='single'){
+      data=array(0,dim = c(length(t),12,1))
     }
     if (data.size=='single'){
       data[,,1]=as.matrix(raw[,1+seq(1,12,1)])
@@ -298,6 +322,9 @@ FPalyze <- function(experiment.type,
       raw.perp=as.data.frame(read.csv(file = paste(path.to.file,file.name[2],sep = ''),header = TRUE,sep = '\t'))
     }
     if (coerce.timepoints==T){
+      if(is.null(incubation.time)==T){
+        stop('Coercion of time points not possible -- please manually specificy time parameters (incubation.time, time.step)')
+      }
       raw.par=as.data.frame(read.csv(file = paste(path.to.file,file.name[1],sep = ''),header = TRUE,sep = '\t'))[1:length(t),]
       raw.perp=as.data.frame(read.csv(file = paste(path.to.file,file.name[2],sep = ''),header = TRUE,sep = '\t'))[1:length(t),]
     }
@@ -305,6 +332,25 @@ FPalyze <- function(experiment.type,
         raw.par[,colnames(raw.par) %in% outliers]=NA
         raw.perp[,colnames(raw.perp) %in% outliers]=NA
     }
+    if(is.null(data.size)==T){
+      if(ncol(raw.par)==13){
+        data.size='single'
+      }
+      if(ncol(raw.par)==25){
+        data.size='half'
+      }
+      if(ncol(raw.par)==49){
+        data.size='full'
+      }
+    }
+
+    # Generate time vector
+    if(is.null(incubation.time)==T){
+      incubation.time=time.step/60*(nrow(raw.par)-1)
+    }
+    t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
+
+    # Import and clean raw data, continued
     if (data.size==('full')){
       data.par=array(0,dim = c(length(t),12,4))
     }
@@ -402,7 +448,7 @@ FPalyze <- function(experiment.type,
       if (data.size=='single'){model.data=list('E'=rep(variant.concentrations,times=1)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
     }
 
-    BIND.models=BIND.fit(model.data,total.P,experiment.type)
+    suppressWarnings(BIND.models <- BIND.fit(model.data,total.P,experiment.type),classes = 'all')
 
   }
 
@@ -439,9 +485,9 @@ FPalyze <- function(experiment.type,
     if (scale.data==F){
       plot(rep(variant.concentrations,if(data.size!='single'){times=dim(data)[3]}else{times=1}),c(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
     }
-    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['STD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lwd=3))
-    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['HILL']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lwd=3))
-    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['QUAD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='green',lwd=3))
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['STD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='blue',lwd=3),silent = TRUE)
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['HILL']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='red',lwd=3),silent = TRUE)
+    try(lines(min(variant.concentrations):max(variant.concentrations),predict(BIND.models[['QUAD']],newdata=list('E'=min(variant.concentrations):max(variant.concentrations))),col='green',lwd=3),silent = TRUE)
     legend('bottomright',legend = c('Std.','Hill','Quad.'),fill = c('blue','red','green'),col = c('blue','red','green'),cex=1.5)
 
     if (scale.data==T){
@@ -451,9 +497,9 @@ FPalyze <- function(experiment.type,
       plot(log10(variant.concentrations),rowMeans(data.scaled.eq),type = 'p',main = paste(enzyme,'-',prey.molecule,' Binding Curve',sep = ''),xlab = paste('log10[',enzyme,'] (nM)',sep = ''),ylab = if(use.anisotropy==T){'Anisotropy'}else{'Polarization (mP)'},ylim = c(min(na.omit(c(data.scaled.eq))),max(na.omit(c(data.scaled.eq)))))
     }
     arrows(x0 = log10(variant.concentrations), x1 = log10(variant.concentrations), y0 = rowMeans(data.scaled.eq) - apply(data.scaled.eq,MARGIN = c(1),FUN = sd), y1 = rowMeans(data.scaled.eq) + apply(data.scaled.eq,MARGIN = c(1),FUN = sd),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
-    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['STD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lwd=3))
-    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['HILL']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lwd=3))
-    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['QUAD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='green',lwd=3))
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['STD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='blue',lwd=3),silent = TRUE)
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['HILL']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='red',lwd=3),silent = TRUE)
+    try(lines(log10(seq(min(variant.concentrations),max(variant.concentrations),0.01)),predict(BIND.models[['QUAD']],newdata=list('E'=seq(min(variant.concentrations),max(variant.concentrations),0.01))),col='green',lwd=3),silent = TRUE)
     legend('topleft',legend = c('Std.','Hill','Quad.'),fill = c('blue','red','green'),col = c('blue','red','green'),cex=1.5)
 
     # Summarize binding curve regression
@@ -510,7 +556,7 @@ FPalyze <- function(experiment.type,
       }
       if (regress.data==T){
         for (q in 1:dim(data)[3]){
-          cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t); try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+          cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t); try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)),silent = TRUE)
           if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
             cmp.models.coefficients.lambda[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
           }
@@ -519,7 +565,7 @@ FPalyze <- function(experiment.type,
             warning(paste0('Reaction ',i,'-',q,' does not fit an exponential decay -- it was coerced to a horizontal line at binding saturation.'))
           }
         }
-        cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=dim(data)[3])); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+        cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=dim(data)[3])); try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)),silent = TRUE)
         if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
           lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),col='red',lwd=3)
         }
@@ -721,9 +767,9 @@ FPalyze <- function(experiment.type,
         if (regress.data==T){
           for (q in 1:4){
             cmp.models.data=list('FP'=c(data.scaled[,i,q]),'tt'=t)
-            try(cmp.models[[paste(i,q,sep = '_')]]<-DED.fit(cmp.models.data))
+            try(cmp.models[[paste(i,q,sep = '_')]]<-DED.fit(cmp.models.data),silent = TRUE)
             if (is.null(cmp.models[[paste(i,q,sep = '_')]])==T){
-              try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+              try(cmp.models[[paste(i,q,sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)),silent = TRUE)
               if (is.null(cmp.models[[paste(i,q,sep = '_')]])==F){
                 cmp.models.coefficients.lambda.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn.1[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]; cmp.models.coefficients.lambda.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[1]; cmp.models.coefficients.Mn.2[i,q]=coefficients(cmp.models[[paste(i,q,sep = '_')]])[2]
                 warning(paste0('Reaction ',i,'-',q,' does not fit a double exponential decay -- it was coerced to a single exponential.'))
@@ -742,9 +788,9 @@ FPalyze <- function(experiment.type,
             }
           }
           cmp.models.data=list('FP'=c(data.scaled[,i,]),'tt'=rep(t,times=dim(data)[3]))
-          try(cmp.models[[paste(i,'all',sep = '_')]]<-DED.fit(cmp.models.data))
+          try(cmp.models[[paste(i,'all',sep = '_')]]<-DED.fit(cmp.models.data),silent = TRUE)
           if (is.null(cmp.models[[paste(i,'all',sep = '_')]])==T){
-            try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)))
+            try(cmp.models[[paste(i,'all',sep = '_')]]<-nls(FP~(1-Mn)*exp(-kn1*tt)+Mn,data=cmp.models.data,start=list('kn1'=1e-3,'Mn'=0),control=list(minFactor=1e-20,maxiter=1e2,warnOnly=TRUE)),silent = TRUE)
           }
           if (scale.data==T & is.null(cmp.models[[paste(i,'all',sep = '_')]])==F){
             lines(t/60,predict(cmp.models[[paste(i,'all',sep = '_')]],newdata=list('tt'=t)),col='red',lwd=3)
