@@ -424,7 +424,7 @@ FPalyze <- function(experiment.type,
     }
   }
   if (experiment.type=='COMP'){
-    data.scaled=(data-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))/(mean(na.omit(c(data[1:3,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))
+    data.scaled=(data-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))/(mean(na.omit(c(data[1,which.min(variant.concentrations),])))-mean(na.omit(c(data[(length(t)-equilibrium.points+1):length(t),which.max(variant.concentrations),]))))
   }
 
   if (experiment.type=='Kd' | experiment.type=='STOICH'){
@@ -634,7 +634,7 @@ FPalyze <- function(experiment.type,
         IC50.data=list('y'=c(cmp.models.coefficients.Mn),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn)))
         IC50.mdl=IC50.fit(IC50.data)
         lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
-        if (show.constants==T){
+        if (show.constants==T & is.null(IC50.mdl)==F){
           cc.temp = signif(coefficients(IC50.mdl)[['IC50']],2)
           text(max(variant.concentrations)*1e-3*0.6,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=2)
           cc.temp = signif(coefficients(IC50.mdl)[['h']],2)
@@ -661,7 +661,7 @@ FPalyze <- function(experiment.type,
         }
 
         # Report and compare models
-        if (exists('IC50.mdl')==T){
+        if (is.null(IC50.mdl)==F){
           print(paste('Equilibrium Competition Summary:',sep = ''),quote = F); print(summary(IC50.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
         }
         if (exists('DTmod.opt')==T){
@@ -861,8 +861,8 @@ FPalyze <- function(experiment.type,
         if (fit.DT.mdls==T){
           IC50a.data=list('y'=c(cmp.models.coefficients.Mn.1x),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.1x)))
           IC50a.mdl=IC50.fit(IC50a.data)
-          lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50a.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
-          if (show.constants==T){
+          try(lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50a.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3))
+          if (show.constants==T & is.null(IC50a.mdl)==F){
             cc.temp = signif(coefficients(IC50a.mdl)[['IC50']],2)
             text(max(variant.concentrations)*1e-3*0.4,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=1)
             cc.temp = signif(coefficients(IC50a.mdl)[['h']],2)
@@ -875,8 +875,8 @@ FPalyze <- function(experiment.type,
         if (fit.DT.mdls==T){
           IC50b.data=list('y'=c(cmp.models.coefficients.Mn.2x),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.2x)))
           IC50b.mdl=IC50.fit(IC50b.data)
-          lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50b.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
-          if (show.constants==T){
+          try(lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50b.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3))
+          if (show.constants==T & is.null(IC50b.mdl)==F){
             cc.temp = signif(coefficients(IC50b.mdl)[['IC50']],2)
             text(max(variant.concentrations)*1e-3*0.4,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=1)
             cc.temp = signif(coefficients(IC50b.mdl)[['h']],2)
@@ -935,8 +935,12 @@ FPalyze <- function(experiment.type,
 
         if (fit.DT.mdls==T){
           # Report and compare models
-          print(paste('Equilibrium Competition 1 Summary:',sep = ''),quote = F); print(summary(IC50a.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
-          print(paste('Equilibrium Competition 2 Summary:',sep = ''),quote = F); print(summary(IC50b.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          if (is.null(IC50a.mdl)==F){
+            print(paste('Equilibrium Competition 1 Summary:',sep = ''),quote = F); print(summary(IC50a.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
+          if (is.null(IC50b.mdl)==F){
+            print(paste('Equilibrium Competition 2 Summary:',sep = ''),quote = F); print(summary(IC50b.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+          }
           print(paste('(FAST) Classic Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
           print(paste('(FAST) Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
           fast.comparison=BIC(DTmod1.opt,DTmod1.opt2)
