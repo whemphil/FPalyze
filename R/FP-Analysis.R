@@ -633,7 +633,7 @@ FPalyze <- function(experiment.type,
       if (fit.DT.mdls==T){
         IC50.data=list('y'=c(cmp.models.coefficients.Mn),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn)))
         IC50.mdl=IC50.fit(IC50.data)
-        lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
+        try(lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3))
         if (show.constants==T & is.null(IC50.mdl)==F){
           cc.temp = signif(coefficients(IC50.mdl)[['IC50']],2)
           text(max(variant.concentrations)*1e-3*0.6,0.85,labels = substitute(paste('IC'[50],' = ',cc.temp,' nM',sep = "")),adj = c(0,0.5),cex=2)
