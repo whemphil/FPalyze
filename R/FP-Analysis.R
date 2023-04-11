@@ -845,20 +845,21 @@ FPalyze <- function(experiment.type,
         }
         cmp.models.coefficients.S=(1 - cmp.models.coefficients.Mn.1)/(2 - cmp.models.coefficients.Mn.2 - cmp.models.coefficients.Mn.1)
         cmp.models.coefficients.MnAVG=(cmp.models.coefficients.Mn.1+cmp.models.coefficients.Mn.2)/2
-        cmp.models.coefficients.Mn1x=(2*cmp.models.coefficients.Mn.1 + 2*cmp.models.coefficients.Mn.2)/(cmp.models.coefficients.S - 3)
-        cmp.models.coefficients.Mn2x=(-3*cmp.models.coefficients.Mn.1 - 3*cmp.models.coefficients.Mn.2)/(2*cmp.models.coefficients.S - 6)
-        k.off.1=cmp.models.coefficients.lambda.1*(1-cmp.models.coefficients.Mn.1); if (coerce.offrates==T){k.off.1[k.off.1<=0]=0}
-        k.off.2=cmp.models.coefficients.lambda.2*(1-cmp.models.coefficients.Mn.2); if (coerce.offrates==T){k.off.2[k.off.2<=0]=0}
+        S.true=rowMeans(cmp.models.coefficients.S,na.rm = TRUE)[1]
+          cmp.models.coefficients.Mn.1x=(cmp.models.coefficients.Mn.1 + 2*S.true - 1)/(2*S.true)
+          cmp.models.coefficients.Mn.2x=(-cmp.models.coefficients.Mn.2 + 2*S.true - 1)/(2*S.true - 2)
+        k.off.1=cmp.models.coefficients.lambda.1*(1-cmp.models.coefficients.Mn.1x); if (coerce.offrates==T){k.off.1[k.off.1<=0]=0}
+        k.off.2=cmp.models.coefficients.lambda.2*(1-cmp.models.coefficients.Mn.2x); if (coerce.offrates==T){k.off.2[k.off.2<=0]=0}
         kt.1=min(na.omit(k.off.1))
         kt.2=min(na.omit(k.off.2))
         par(fig=c(0.5,1,0.5,0.9),mar=c(4.5,5,3,1),oma = c(0,0,0,0),new=TRUE)
         plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.S,na.rm = TRUE),main = 'Decoy vs Fast Events',xlab = paste0('[Decoy] (µM)'),ylab = expression('Proportion of k'[off]*''^'fast'), ylim = 0:1,type='p',cex.main=2,cex.lab=2,cex.axis=2)
         arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.S,na.rm = TRUE) - apply(cmp.models.coefficients.S,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.S,na.rm = TRUE) + apply(cmp.models.coefficients.S,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         par(fig=c(0,0.35,0.25,0.5),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
-        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE),main = expression('[EP]'['eq1']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
-        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.1,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.1,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.1,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.1x,na.rm = TRUE),main = expression('[EP]'['eq1']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.1x,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.1x,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.1x,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.1x,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         if (fit.DT.mdls==T){
-          IC50a.data=list('y'=c(cmp.models.coefficients.Mn.1),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.1)))
+          IC50a.data=list('y'=c(cmp.models.coefficients.Mn.1x),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.1x)))
           IC50a.mdl=IC50.fit(IC50a.data)
           lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50a.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
           if (show.constants==T){
@@ -869,10 +870,10 @@ FPalyze <- function(experiment.type,
           }
         }
         par(fig=c(0,0.35,0,0.25),mar=c(5,6,3,1),oma = c(0,0,0,0),new=TRUE)
-        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE),main = expression('[EP]'['eq2']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
-        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.2,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.2,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.2,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
+        plot(variant.concentrations/1e3,rowMeans(cmp.models.coefficients.Mn.2x,na.rm = TRUE),main = expression('[EP]'['eq2']),xlab = paste0('[Decoy] (µM)'),ylab = expression('Fraction [EP]'[0]),type='p',cex.main=2,cex.lab=2,cex.axis=2)
+        arrows(x0 = variant.concentrations/1e3, x1 = variant.concentrations/1e3, y0 = rowMeans(cmp.models.coefficients.Mn.2x,na.rm = TRUE) - apply(cmp.models.coefficients.Mn.2x,MARGIN = c(1),FUN = sd,na.rm = TRUE), y1 = rowMeans(cmp.models.coefficients.Mn.2x,na.rm = TRUE) + apply(cmp.models.coefficients.Mn.2x,MARGIN = c(1),FUN = sd,na.rm = TRUE),code = 3,col = 'black',lwd = 1,angle = 90,length = 0.1)
         if (fit.DT.mdls==T){
-          IC50b.data=list('y'=c(cmp.models.coefficients.Mn.2),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.2)))
+          IC50b.data=list('y'=c(cmp.models.coefficients.Mn.2x),'D'=rep(variant.concentrations,times=ncol(cmp.models.coefficients.Mn.2x)))
           IC50b.mdl=IC50.fit(IC50b.data)
           lines(seq(0,max(variant.concentrations)*1e-3,1e-3),predict(IC50b.mdl,newdata=list('D' = seq(0,max(variant.concentrations),1))),lwd=3)
           if (show.constants==T){
