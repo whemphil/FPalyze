@@ -508,8 +508,8 @@ FPalyze <- function(experiment.type,
     print(summary(BIND.models[['QUAD']])); print(paste(rep('#',times=100),collapse = ''),quote = F)
 
     # Model comparison statistics
-    if(is.null(BIND.models[['STD']])==F & is.null(BIND.models[['HILL']])==F & is.null(BIND.models[['QUAD']])==F){
-      BIC=BIC(BIND.models[['STD']],BIND.models[['HILL']],BIND.models[['QUAD']])
+    if(is.null(BIND.models[['STD']])==F & is.null(BIND.models[['HILL']])==F & (is.null(BIND.models[['QUAD']])==F | is.null(total.P)==T)){
+      BIC=BIC(BIND.models[['STD']],BIND.models[['HILL']])
       print(BIC,quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
       delta.BIC=BIC(BIND.models[['HILL']])-BIC(BIND.models[['STD']])
       print(paste('ΔBIC = ',delta.BIC,sep = ''),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
