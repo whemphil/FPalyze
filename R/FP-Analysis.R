@@ -315,6 +315,7 @@ FPalyze <- function(experiment.type,
       data[,,3]=as.matrix(raw[,1+seq(25,48,2)])
       data[,,4]=as.matrix(raw[,1+seq(26,48,2)])
     }
+    data[data=='Invalid']=NA; data=array(as.numeric(data),dim = dim(data))
   }
   if (default.mP.values==F){
     if (coerce.timepoints==F){
@@ -387,6 +388,8 @@ FPalyze <- function(experiment.type,
       data.perp[,,3]=as.matrix(raw.perp[,1+seq(25,48,2)])
       data.perp[,,4]=as.matrix(raw.perp[,1+seq(26,48,2)])
     }
+    data.perp[data.perp=='OVER']=NA; data.perp=array(as.numeric(data.perp),dim = dim(data.perp))
+    data.par[data.par=='OVER']=NA; data.par=array(as.numeric(data.par),dim = dim(data.par))
     if (background.subtraction==T & data.size==('full')){
       data.par=data.par-mean(as.matrix(raw.par[,50:53]))
       data.perp=data.perp-mean(as.matrix(raw.perp[,50:53]))
