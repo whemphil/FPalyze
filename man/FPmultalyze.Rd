@@ -5,7 +5,21 @@
 Function to analyze Kd and off-rate data from multiple fluorescence polarization experiments.
 }
 \usage{
-FPmultalyze(experiment.type='Kd',path.to.file='./',file.range=NULL,file.name=NULL,enzyme=NULL,prey.molecule=NULL,decoy.molecule=NULL,parameters.file=NULL,save.data=T,save.name=NULL,plot.pdf=T,plot.name=NULL,save.console=T,save.id=NULL,...)
+FPmultalyze(experiment.type='Kd',
+            path.to.file='./',
+            file.range=NULL,
+            file.name=NULL,
+            enzyme=NULL,
+            prey.molecule=NULL,
+            decoy.molecule=NULL,
+            parameters.file=NULL,
+            save.data=T,
+            save.name=NULL,
+            plot.pdf=T,
+            plot.name=NULL,
+            save.console=T,
+            save.id=NULL,
+            ...)
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd' or 'COMP'.}
