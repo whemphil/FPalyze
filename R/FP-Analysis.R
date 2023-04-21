@@ -46,7 +46,8 @@ FPalyze <- function(experiment.type,
                     show.constants=F,
                     use.anisotropy=T,
                     exponentials=1,
-                    fit.DT.mdls=T){
+                    fit.DT.mdls=T,
+                    drift.corr=F){
 
   DED.fit <- function(data){
     FXNa = FP ~ Mn + (1 - Mn)*s*exp(-lambda.1*tt) + (1 - Mn)*(1 - s)*exp(-lambda.1*beta*tt)
@@ -271,6 +272,7 @@ FPalyze <- function(experiment.type,
       raw=as.data.frame(read.csv(file = paste(path.to.file,file.name,sep = ''),header = TRUE,sep = '\t'))
     }
     if (coerce.timepoints==T){
+      t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
       raw=as.data.frame(read.csv(file = paste(path.to.file,file.name,sep = ''),header = TRUE,sep = '\t'))[1:length(t),]
     }
     if (outliers[1]!='none'){
@@ -291,8 +293,8 @@ FPalyze <- function(experiment.type,
     # Generate time vector
     if(is.null(incubation.time)==T){
       incubation.time=time.step/60*(nrow(raw)-1)
+      t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
     }
-    t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
 
     # Import and clean raw data, continued
     if (data.size=='full'){
@@ -328,6 +330,7 @@ FPalyze <- function(experiment.type,
       if(is.null(incubation.time)==T){
         stop('Coercion of time points not possible -- please manually specificy time parameters (incubation.time, time.step)')
       }
+      t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
       raw.par=as.data.frame(read.csv(file = paste(path.to.file,file.name[1],sep = ''),header = TRUE,sep = '\t'))[1:length(t),]
       raw.perp=as.data.frame(read.csv(file = paste(path.to.file,file.name[2],sep = ''),header = TRUE,sep = '\t'))[1:length(t),]
     }
@@ -350,8 +353,8 @@ FPalyze <- function(experiment.type,
     # Generate time vector
     if(is.null(incubation.time)==T){
       incubation.time=time.step/60*(nrow(raw.par)-1)
+      t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
     }
-    t=seq(t.zero*60,t.zero*60+incubation.time*60,time.step)
 
     # Import and clean raw data, continued
     if (data.size==('full')){
@@ -414,6 +417,15 @@ FPalyze <- function(experiment.type,
     if(use.anisotropy==T){
       data=data.A
     }
+  }
+
+  # Data drift correction
+  if (drift.corr==T & experiment.type=='COMP'){
+    ref.a=rowMeans(data[,variant.concentrations==0,])
+    ref.b=ref.a[length(ref.a)]-ref.a
+    ref.c=array(ref.b,dim = dim(data))
+    data=data+ref.c
+    rm(ref.a,ref.b,ref.c)
   }
 
   # Scale raw data
