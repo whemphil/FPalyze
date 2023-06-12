@@ -955,10 +955,10 @@ FPalyze <- function(experiment.type,
         if (fit.DT.mdls==T){
           # Report and compare models
           if (is.null(IC50a.mdl)==F){
-            print(paste('Equilibrium Competition 1 Summary:',sep = ''),quote = F); print(summary(IC50a.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+            print(paste('Equilibrium Competition 1 Summary:',sep = ''),quote = F); try(print(summary(IC50a.mdl),quote = F)); print(paste(rep('#',times=100),collapse = ''),quote = F)
           }
           if (is.null(IC50b.mdl)==F){
-            print(paste('Equilibrium Competition 2 Summary:',sep = ''),quote = F); print(summary(IC50b.mdl),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
+            print(paste('Equilibrium Competition 2 Summary:',sep = ''),quote = F); try(print(summary(IC50b.mdl),quote = F)); print(paste(rep('#',times=100),collapse = ''),quote = F)
           }
           print(paste('(FAST) Classic Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
           print(paste('(FAST) Direct Transfer Model Summary:',sep = ''),quote = F); print(summary(DTmod1.opt2),quote = F); print(paste(rep('#',times=100),collapse = ''),quote = F)
