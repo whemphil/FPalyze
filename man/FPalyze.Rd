@@ -42,7 +42,9 @@ FPalyze(experiment.type,
         show.constants=F,
         use.anisotropy=T,
         exponentials=1,
-        fit.DT.mdls=T)
+        fit.DT.mdls=T,
+        drift.corr=F,
+        stoich.kd=NULL)
 }
 \arguments{
 \item{experiment.type}{A single character string indicating the type of data to be analyzed; can be 'Kd', 'COMP', or 'STOICH'.}
@@ -85,6 +87,8 @@ Additional Parameters:
 \item{use.anisotropy}{should anisotropy be calculated instead of polarization, T/F; DEFAULT -- T}
 \item{exponentials}{should a single or double exponential model be used for dissociation curves, 1-2; DEFAULT -- 1}
 \item{fit.DT.mdls}{should dissociation rates versus decoy concentration be further regressed and modeled, T/F; DEFAULT -- T}
+\item{drift.corr}{should background (decoy-independent) changes in anisotropy be correccted for, T/F; DEFAULT -- F}
+\item{stoich.kd}{the Kd to be constrained for regression when experiment.type='STOICH', nM; DEFAULT -- NULL (Kd is unconstrained)}
 }
 
 \value{

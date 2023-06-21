@@ -47,7 +47,8 @@ FPalyze <- function(experiment.type,
                     use.anisotropy=T,
                     exponentials=1,
                     fit.DT.mdls=T,
-                    drift.corr=F){
+                    drift.corr=F,
+                    stoich.kd=NULL){
 
   DED.fit <- function(data){
     FXNa = FP ~ Mn + (1 - Mn)*s*exp(-lambda.1*tt) + (1 - Mn)*(1 - s)*exp(-lambda.1*beta*tt)
@@ -176,7 +177,7 @@ FPalyze <- function(experiment.type,
     }
   }
 
-  BIND.fit <- function(data,total.P,experiment.type){
+  BIND.fit <- function(data,total.P,experiment.type,stoich.kd){
     FXNstd <- FP~(E/(E+Kd))*(Mx-Mn)+Mn
     FXNhill <- FP~(E^n/(E^n+Kd))*(Mx-Mn)+Mn
     FXNquad <- FP~(Mx-Mn)*(((Pt+(E+Kd))-((Pt+(E+Kd))^2-4*Pt*E)^0.5)/(2*Pt))+Mn
@@ -207,11 +208,19 @@ FPalyze <- function(experiment.type,
     }
     # STOICH
     if(experiment.type=='STOICH' & is.null(total.P)==F){
-      start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
-                             S = 2^seq(-2,2,len = 10),
-                             Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
-                             Mn = min(data$FP,na.rm = T))
-      try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('Kd'=start.grid$Kd,'S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
+      if (is.null(stoich.kd)==T){
+        start.grid=expand.grid(Kd = 1e3*2^c(3:-11),
+                               S = 2^seq(-2,2,len = 10),
+                               Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                               Mn = min(data$FP,na.rm = T))
+        try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('Kd'=start.grid$Kd,'S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
+      }
+      if (is.null(stoich.kd)==F){
+        start.grid=expand.grid(S = 2^seq(-2,2,len = 10),
+                               Mx = max(data$FP,na.rm = T)*2^seq(0,3,len = 5),
+                               Mn = min(data$FP,na.rm = T))
+        try(stoich.mdl <- nls2::nls2(FXNstoich,data,start=data.frame('S'=start.grid$S,'Mx'=start.grid$Mx,'Mn'=start.grid$Mn),control=list(minFactor=1e-10,maxiter=1e3,warnOnly=TRUE)),silent = TRUE)
+      }
     }
     # Reporting
     if(exists('std.mdl')==F){
@@ -463,11 +472,11 @@ FPalyze <- function(experiment.type,
 
     # Fit equilibrium binding curve data
     if (experiment.type=='STOICH' | experiment.type=='Kd'){
-      if (data.size=='full' | data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=dim(data)[3])[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
-      if (data.size=='single'){model.data=list('E'=rep(variant.concentrations,times=1)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P)}
+      if (data.size=='full' | data.size=='half'){model.data=list('E'=rep(variant.concentrations,times=dim(data)[3])[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P,'Kd'=stoich.kd)}
+      if (data.size=='single'){model.data=list('E'=rep(variant.concentrations,times=1)[is.na(c(data.scaled.eq))==FALSE],'FP'=c(data.scaled.eq)[is.na(c(data.scaled.eq))==FALSE],'Pt'=total.P,'Kd'=stoich.kd)}
     }
 
-    suppressWarnings(BIND.models <- BIND.fit(model.data,total.P,experiment.type),classes = 'all')
+    suppressWarnings(BIND.models <- BIND.fit(model.data,total.P,experiment.type,stoich.kd),classes = 'all')
 
   }
 
@@ -1018,10 +1027,10 @@ FPalyze <- function(experiment.type,
     }
   }
   if (experiment.type=='STOICH'){
-    nlm.Kd=coefficients(BIND.models[['STOICH']])$Kd
-    nlm.S=coefficients(BIND.models[['STOICH']])$S
-    nlm.Mn=coefficients(BIND.models[['STOICH']])$Mn
-    nlm.Mx=coefficients(BIND.models[['STOICH']])$Mx
+    nlm.Kd=coefficients(BIND.models[['STOICH']])['Kd']
+    nlm.S=coefficients(BIND.models[['STOICH']])['S']
+    nlm.Mn=coefficients(BIND.models[['STOICH']])['Mn']
+    nlm.Mx=coefficients(BIND.models[['STOICH']])['Mx']
     show(summary(BIND.models[['STOICH']]))
 
     scale.dat.shi=(data.scaled.eq-nlm.Mn)/(nlm.Mx-nlm.Mn)
